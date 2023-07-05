@@ -42,7 +42,9 @@ class AbstractRS(nn.Module):
         self.model.cuda(self.device)
 
         # loading and saving
-        self.saveID = args.saveID + str(args.dsc) + "_n_layers=" + str(args.n_layers) + "batch_size=" + str(args.batch_size) + "neg_sample=" + str(args.neg_sample) + "lr=" + str(args.lr)
+        self.saveID = args.saveID + str(args.dsc) + "Ks=" + str(args.Ks) + 'patience=' + str(args.patience)\
+            + "_n_layers=" + str(args.n_layers) + "batch_size=" + str(args.batch_size)\
+                + "neg_sample=" + str(args.neg_sample) + "lr=" + str(args.lr) 
         
         self.modify_saveID()
 
@@ -80,7 +82,7 @@ class AbstractRS(nn.Module):
     # define the training process
     def train(self) -> None:
         # TODO
-        optimizer = self.get_optimizer() # get the optimizer
+        self.set_optimizer() # get the optimizer
         self.flag = False
         for epoch in range(self.start_epoch, self.max_epoch):
             # print(self.model.embed_user.weight)
@@ -89,21 +91,21 @@ class AbstractRS(nn.Module):
             # All models
             pbar = tqdm(enumerate(self.data.train_loader), mininterval=2, total = len(self.data.train_loader))
             t1=time.time()
-            losses = self.train_one_epoch(epoch, optimizer, pbar) # train one epoch
+            losses = self.train_one_epoch(epoch, pbar) # train one epoch
             t2=time.time()
             self.document_running_loss(losses, epoch, t2-t1) # report the loss
             if (epoch + 1) % self.verbose == 0: # evaluate the model
                 self.eval_and_check_early_stop(epoch)
 
     #! must be implemented by the subclass
-    def train_one_epoch(self, epoch, optimizer, pbar):
+    def train_one_epoch(self, pbar):
         raise NotImplementedError
     
     def modify_saveID(self):
         pass
 
-    def get_optimizer(self):
-        return torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == True], lr=self.lr)
+    def set_optimizer(self):
+        self.optimizer = torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == True], lr=self.lr)
 
     def document_running_loss(self, losses:list, epoch, t_one_epoch):
         loss_str = ', '.join(['%.5f']*len(losses)) % tuple(losses)

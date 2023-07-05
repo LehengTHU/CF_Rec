@@ -16,7 +16,7 @@ class INFONCE_RS(AbstractRS):
     def modify_saveID(self):
         self.saveID += "_tau" + str(self.model.tau)
 
-    def train_one_epoch(self, epoch, optimizer, pbar):
+    def train_one_epoch(self, epoch, pbar):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
         for batch_i, batch in pbar:          
 
@@ -31,9 +31,9 @@ class INFONCE_RS(AbstractRS):
             mf_loss, reg_loss = self.model(users, pos_items, neg_items)
             loss = mf_loss + reg_loss
 
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            self.optimizer.step()
 
             running_loss += loss.detach().item()
             running_reg_loss += reg_loss.detach().item()

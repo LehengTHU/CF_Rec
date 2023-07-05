@@ -12,7 +12,7 @@ class LGN_RS(AbstractRS):
     def __init__(self, args) -> None:
         super().__init__(args)
 
-    def train_one_epoch(self, epoch, optimizer, pbar):
+    def train_one_epoch(self, epoch, pbar):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
         for batch_i, batch in pbar:          
             
@@ -27,9 +27,9 @@ class LGN_RS(AbstractRS):
             mf_loss, reg_loss = self.model(users, pos_items, neg_items)
             loss = mf_loss + reg_loss
 
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            self.optimizer.step()
             # print(self.model.embed_user.weight)
             # print("?")
 
