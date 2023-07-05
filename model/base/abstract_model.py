@@ -72,6 +72,7 @@ class AbstractModel(nn.Module):
 
         users = all_users[torch.tensor(users).cuda(self.device)]
         items = all_items[torch.tensor(items).cuda(self.device)]
+        
         if(self.pred_norm == True):
             users = F.normalize(users, dim = -1)
             items = F.normalize(items, dim = -1)

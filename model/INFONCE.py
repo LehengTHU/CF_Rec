@@ -11,6 +11,10 @@ from tqdm import tqdm
 class INFONCE_RS(AbstractRS):
     def __init__(self, args) -> None:
         super().__init__(args)
+        self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
+
+    def modify_saveID(self):
+        self.saveID += "_tau" + str(self.model.tau)
 
     def train_one_epoch(self, epoch, optimizer, pbar):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
@@ -30,7 +34,7 @@ class INFONCE_RS(AbstractRS):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
+
             running_loss += loss.detach().item()
             running_reg_loss += reg_loss.detach().item()
             running_mf_loss += mf_loss.detach().item()
@@ -41,6 +45,7 @@ class INFONCE_RS(AbstractRS):
 class INFONCE(AbstractModel):
     def __init__(self, args, data) -> None:
         super().__init__(args, data)
+        self.tau = args.tau
     
     def forward(self, users, pos_items, neg_items):
 

@@ -44,6 +44,8 @@ class AbstractRS(nn.Module):
         # loading and saving
         self.saveID = args.saveID + str(args.dsc) + "_n_layers=" + str(args.n_layers) + "batch_size=" + str(args.batch_size) + "neg_sample=" + str(args.neg_sample) + "lr=" + str(args.lr)
         
+        self.modify_saveID()
+
         if args.n_layers > 0 and args.modeltype != "LGN":
             self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset, args.modeltype, self.saveID)
         else:
@@ -96,6 +98,9 @@ class AbstractRS(nn.Module):
     #! must be implemented by the subclass
     def train_one_epoch(self, epoch, optimizer, pbar):
         raise NotImplementedError
+    
+    def modify_saveID(self):
+        pass
 
     def get_optimizer(self):
         return torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == True], lr=self.lr)
@@ -155,7 +160,7 @@ class AbstractRS(nn.Module):
             print(">> ", end = '')
             # inp_epoch = int(input())
 
-            if self.args.clear:
+            if self.args.clear_checkpoints:
                 print("Clear checkpoint")
                 clear_checkpoint(checkpoint_dir)
                 return model, 0,

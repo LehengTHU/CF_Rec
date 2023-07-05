@@ -28,8 +28,12 @@ if __name__ == '__main__':
     args = parse_args()
     seed_torch(args.seed) # set random seed
 
-    exec('from model.'+ args.modeltype + ' import ' + args.modeltype + '_RS') # load the model
-    RS = eval(args.modeltype + '_RS(args)')
+    try:
+        exec('from model.'+ args.modeltype + ' import ' + args.modeltype + '_RS') # load the model
+        RS = eval(args.modeltype + '_RS(args)')
 
-    # activate the recommender system
-    RS.execute() # train and test
+        # activate the recommender system
+        RS.execute() # train and test
+    except:
+        print('Model %s not implemented!' % (args.modeltype))
+        exit(1)
