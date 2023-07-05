@@ -95,6 +95,7 @@ class Data:
         self.infonce = args.infonce
         self.num_workers = args.num_workers
         self.dataset = args.dataset
+        self.candidate = args.candidate
 
         # Number of total users and items
         self.n_users, self.n_items, self.n_observations = 0, 0, 0
@@ -376,7 +377,7 @@ class Data:
         return self.Graph
     
     def get_not_candidate(self):
-        if "kuairec" in self.dataset or "yahoo" in self.dataset:
+        if self.candidate:
             not_candidate_dict = {}
             with open('data/' + self.dataset + '/not_candidate.txt', 'r') as f:
                 for line in f.readlines():
@@ -388,9 +389,6 @@ class Data:
                     items = line[1:]
                     not_candidate_dict[user] = items
 
-                #not_candidate = f.readlines()
-                #not_candidate = [int(item.strip()) for item in not_candidate]
-                #not_candidate_dict = {u:not_candidate for u in self.users}
             return not_candidate_dict
         else:
             return None
