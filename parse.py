@@ -7,6 +7,8 @@ def parse_args():
                         help='we only want test value.')
     parser.add_argument('--seed', type=int, default=101,
                         help='Random seed.')
+    parser.add_argument('--clear', nargs='?', default=True,
+                        help='Clean the earlier checkpoint.')
     parser.add_argument('--test_only', nargs='?', default=False,
                         help='we only want test value.')
     parser.add_argument('--data_path', nargs='?', default='./data/',
@@ -23,7 +25,7 @@ def parse_args():
                         help='Regularization.')
     parser.add_argument('--epoch', type=int, default=2000,
                         help='Number of epoch.')
-    parser.add_argument('--Ks', nargs='?', default= [20],
+    parser.add_argument('--Ks', type = int, default= 5,
                         help='Evaluate on Ks optimal items.')
     parser.add_argument('--log_interval', type=int, default=10,
                         help='log\'s interval epoch while training')
@@ -57,6 +59,7 @@ def parse_args():
                         help="train_norm")
     parser.add_argument("--pred_norm", action="store_true",
                         help="pred_norm")
+
     
     # INFONCE
     parser.add_argument('--tau', type=float, default=0.1,
@@ -77,7 +80,7 @@ def parse_args():
 
     parser.add_argument('--rweight', type=float, default=0.05)
     parser.add_argument('--sam',type=bool,default=True)
-    parser.add_argument('--pop_test',type=bool,default=False)
+    #parser.add_argument('--pop_test',type=bool,default=False)
 
     #SimpleX
 

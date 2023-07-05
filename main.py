@@ -19,7 +19,7 @@ from data.data import Data
 from parse import parse_args
 
 from torch.utils.data import Dataset, DataLoader
-from collect_log import read_log
+# from collect_log import read_log
 import torch.nn.functional as F
 from model.base.utils import *
 
@@ -33,7 +33,3 @@ if __name__ == '__main__':
 
     # activate the recommender system
     RS.execute() # train and test
-
-    print('yes')
-
-    print('!!!!!!!!!')

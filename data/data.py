@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from reckit import randint_choice
+import os
 
 
 # Helper function used when loading data from files
@@ -280,11 +281,11 @@ class Data:
                                               shape=(self.n_users, self.n_items)).toarray()
             self.train_iu_matrix = np.copy( self.train_ui_matrix.T )
 
-        if self.modeltype == 'CausE':
-            self.train_data = TrainDataset_cause(self.modeltype, self.users, self.train_user_list, self.n_observations, \
-                                                self.n_interactions, self.pop_item, self.n_items, self.infonce, self.neg_sample, self.items, self.sample_items)
-        else:
-            self.train_data = TrainDataset(self.modeltype, self.users, self.train_user_list, self.user_pop_idx, self.item_pop_idx, \
+        #if self.modeltype == 'CausE':
+        #    self.train_data = TrainDataset_cause(self.modeltype, self.users, self.train_user_list, self.n_observations, \
+        #                                        self.n_interactions, self.pop_item, self.n_items, self.infonce, self.neg_sample, self.items, self.sample_items)
+        #else:
+        self.train_data = TrainDataset(self.modeltype, self.users, self.train_user_list, self.user_pop_idx, self.item_pop_idx, \
                                         self.neg_sample, self.n_observations, self.n_items, self.sample_items, self.weights, self.infonce, self.items)
 
         self.train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, drop_last=True)
@@ -375,11 +376,21 @@ class Data:
         return self.Graph
     
     def get_not_candidate(self):
-        if "kuairec" in self.dataset:
-            with open(self.dataset + '/not_candidate.txt', 'r') as f:
-                not_candidate = f.readlines()
-                not_candidate = [int(item.strip()) for item in not_candidate]
-                not_candidate_dict = {u:not_candidate for u in self.users}
+        if "kuairec" in self.dataset or "yahoo" in self.dataset:
+            not_candidate_dict = {}
+            with open('data/' + self.dataset + '/not_candidate.txt', 'r') as f:
+                for line in f.readlines():
+                    line = line.strip('\n').split(' ')
+                    if len(line) == 0:
+                        continue
+                    line = [int(i) for i in line]
+                    user = line[0]
+                    items = line[1:]
+                    not_candidate_dict[user] = items
+
+                #not_candidate = f.readlines()
+                #not_candidate = [int(item.strip()) for item in not_candidate]
+                #not_candidate_dict = {u:not_candidate for u in self.users}
             return not_candidate_dict
         else:
             return None
@@ -451,6 +462,7 @@ class TrainDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.n_observations
 
+'''
 class TrainDataset_cause(torch.utils.data.Dataset):
     
     def __init__(self, modeltype, users, train_user_list, n_observations, n_interactions, pop_item, n_items, infonce, neg_sample, items, sample_items):
@@ -496,5 +508,5 @@ class TrainDataset_cause(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.n_observations
-
+'''
 
