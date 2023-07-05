@@ -232,7 +232,7 @@ class AbstractRS(nn.Module):
             eval_test_ood_3 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_3,top_k=[K_value],\
                                     dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list_1,data.test_ood_user_list_2]))
                         
-        elif  "kuairec" in self.dataset or "yahoo" in self.dataset:
+        elif  self.args.candidate:
             eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,not_candidate_dict]))
             eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list,not_candidate_dict]))
             eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list,not_candidate_dict]))
@@ -241,35 +241,6 @@ class AbstractRS(nn.Module):
             eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list]))
             eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list]))
        
-        '''
-        else:
-            if(self.dataset == "tencent_synthetic"):
-                eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[20],pop_mask=pop_mask)
-                eval_test_ood_1 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_1,top_k=[20],\
-                                dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list_2,data.test_ood_user_list_3]),pop_mask=pop_mask)
-                eval_test_ood_2 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_2,top_k=[20],\
-                                    dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list_1,data.test_ood_user_list_3]),pop_mask=pop_mask)
-                eval_test_ood_3 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_3,top_k=[20],\
-                                    dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list_1,data.test_ood_user_list_2]),pop_mask=pop_mask)
-            elif(self.dataset == "kuairec_ood"):
-                eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[20],dump_dict=merge_user_list([data.train_user_list,not_candidate_dict]),pop_mask=pop_mask)
-                eval_test_ood_1 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_1,top_k=[20],\
-                                    dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,not_candidate_dict]),pop_mask=pop_mask)
-                eval_test_ood_2 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_2,top_k=[20],\
-                                    dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,not_candidate_dict,data.test_ood_user_list_1]),pop_mask=pop_mask)
-                eval_test_ood_3 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_3,top_k=[20],\
-                                    dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,not_candidate_dict,data.test_ood_user_list_1,data.test_ood_user_list_2]),pop_mask=pop_mask)
-            else:
-                if "kuairec" in self.dataset:
-                    eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[20],dump_dict=merge_user_list([data.train_user_list,not_candidate_dict]),pop_mask=pop_mask)
-                    eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[20],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list,not_candidate_dict]),pop_mask=pop_mask)
-                    eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[20],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list,not_candidate_dict]),pop_mask=pop_mask)
-                else:
-                    eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[20],pop_mask=pop_mask)
-                    eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[20],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list]),pop_mask=pop_mask)
-                    eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[20],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list]),pop_mask=pop_mask)
-        '''
-
         if(self.dataset == "tencent_synthetic" or self.dataset == "kuairec_ood"):
             evaluators=[eval_valid, eval_test_ood_1, eval_test_ood_2, eval_test_ood_3]
             eval_names=["valid","test_ood_1", "test_ood_2", "test_ood_3"]

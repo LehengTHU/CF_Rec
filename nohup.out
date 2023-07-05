@@ -1,0 +1,6 @@
+Evaluate model with cpp
+Traceback (most recent call last):
+  File "/storage_fast/anzhang/CF_Rec/main.py", line 31, in <module>
+    exec('from model.'+ args.modeltype + ' import ' + args.modeltype + '_RS') # load the model
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'model.BC_LOSS'

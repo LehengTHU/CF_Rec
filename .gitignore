@@ -151,6 +151,6 @@ old_train_Adap_tau.py
 old_train_AdvInfoNCE.py
 
 collect_log.py
-
+nohup.out
 # .gitignore
 
