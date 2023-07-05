@@ -8,14 +8,14 @@ from model.base.abstract_model import AbstractModel
 from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
-class LGN_RS(AbstractRS):
+class INFONCE_RS(AbstractRS):
     def __init__(self, args) -> None:
         super().__init__(args)
 
     def train_one_epoch(self, epoch, optimizer, pbar):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
         for batch_i, batch in pbar:          
-            
+
             batch = [x.cuda(self.device) for x in batch]
             users, pos_items, users_pop, pos_items_pop, pos_weights  = batch[0], batch[1], batch[2], batch[3], batch[4]
 
@@ -30,43 +30,47 @@ class LGN_RS(AbstractRS):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            # print(self.model.embed_user.weight)
-            # print("?")
-
+            
             running_loss += loss.detach().item()
             running_reg_loss += reg_loss.detach().item()
             running_mf_loss += mf_loss.detach().item()
             num_batches += 1
         return [running_loss/num_batches, running_mf_loss/num_batches, running_reg_loss/num_batches]
+    
 
-
-class LGN(AbstractModel):
+class INFONCE(AbstractModel):
     def __init__(self, args, data) -> None:
         super().__init__(args, data)
     
     def forward(self, users, pos_items, neg_items):
+
         all_users, all_items = self.compute()
 
-        users_emb = all_users[users]
-        pos_emb = all_items[pos_items]
-        neg_emb = all_items[neg_items]
         userEmb0 = self.embed_user(users)
         posEmb0 = self.embed_item(pos_items)
         negEmb0 = self.embed_item(neg_items)
 
-        if(self.train_norm == True):
+        users_emb = all_users[users]
+        pos_emb = all_items[pos_items]
+        neg_emb = all_items[neg_items]
+
+        if(self.train_norm):
             users_emb = F.normalize(users_emb, dim = -1)
             pos_emb = F.normalize(pos_emb, dim = -1)
             neg_emb = F.normalize(neg_emb, dim = -1)
+        
+        pos_ratings = torch.sum(users_emb*pos_emb, dim = -1)
+        neg_ratings = torch.matmul(torch.unsqueeze(users_emb, 1), 
+                                       neg_emb.permute(0, 2, 1)).squeeze(dim=1)
 
-        pos_scores = torch.sum(torch.mul(users_emb, pos_emb), dim=1)  # users, pos_items, neg_items have the same shape
-        neg_scores = torch.sum(torch.mul(users_emb, neg_emb), dim=1)
+        numerator = torch.exp(pos_ratings / self.tau)
 
-        regularizer = 0.5 * torch.norm(userEmb0) ** 2 + 0.5 * torch.norm(posEmb0) ** 2 + 0.5 * torch.norm(negEmb0) ** 2
+        denominator = numerator + torch.sum(torch.exp(neg_ratings / self.tau), dim = 1)
+        
+        ssm_loss = torch.mean(torch.negative(torch.log(numerator/denominator)))
+
+        regularizer = 0.5 * torch.norm(userEmb0) ** 2 + 0.5 * torch.norm(posEmb0) ** 2 + 0.5 ** torch.norm(negEmb0)
         regularizer = regularizer / self.batch_size
-
-        maxi = torch.log(torch.sigmoid(pos_scores - neg_scores) + 1e-10)
-        mf_loss = torch.negative(torch.mean(maxi))
         reg_loss = self.decay * regularizer
 
-        return mf_loss, reg_loss
+        return ssm_loss, reg_loss

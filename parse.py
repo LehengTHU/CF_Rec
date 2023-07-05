@@ -58,13 +58,9 @@ def parse_args():
     parser.add_argument("--pred_norm", action="store_true",
                         help="pred_norm")
     
-                        
-                        
     # INFONCE
     parser.add_argument('--tau', type=float, default=0.1,
                         help='temperature parameter')
-    parser.add_argument('--eta', type=float, default=1,
-                        help='eta')
 
     # MACR
     parser.add_argument('--alpha', type=float, default=1e-3,

@@ -21,7 +21,6 @@ class AbstractRS(nn.Module):
         self.batch_size = args.batch_size
         self.max_epoch = args.epoch
         self.verbose = args.verbose
-        self.seed = args.seed
 
         # load the data
         self.data = Data(args)
@@ -58,7 +57,6 @@ class AbstractRS(nn.Module):
 
     # the whole pipeline of the training process
     def execute(self):
-        seed_torch(self.seed) # set the seed
         # train the model if not test only
         if not self.test_only:
             print("start training") 
@@ -82,6 +80,7 @@ class AbstractRS(nn.Module):
         optimizer = self.get_optimizer() # get the optimizer
         self.flag = False
         for epoch in range(self.start_epoch, self.max_epoch):
+            # print(self.model.embed_user.weight)
             if self.flag: # early stop
                 break
             # All models
@@ -98,7 +97,7 @@ class AbstractRS(nn.Module):
         raise NotImplementedError
 
     def get_optimizer(self):
-        return torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=5e-6)
+        return torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == True], lr=self.lr)
 
     def document_running_loss(self, losses:list, epoch, t_one_epoch):
         loss_str = ', '.join(['%.5f']*len(losses)) % tuple(losses)

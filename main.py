@@ -21,19 +21,18 @@ from parse import parse_args
 from torch.utils.data import Dataset, DataLoader
 from collect_log import read_log
 import torch.nn.functional as F
-
+from model.base.utils import *
 
 # load model
 if __name__ == '__main__':
     args = parse_args()
-    print('from model.'+ args.modeltype + ' import ' + args.modeltype + '_RS')
-    print(args.modeltype + '_RS(args)')
+    seed_torch(args.seed) # set random seed
+
     exec('from model.'+ args.modeltype + ' import ' + args.modeltype + '_RS') # load the model
-    # from model.MF import MF_RS
     RS = eval(args.modeltype + '_RS(args)')
 
     # activate the recommender system
-    RS.execute()
+    RS.execute() # train and test
 
     print('yes')
 
