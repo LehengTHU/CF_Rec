@@ -165,6 +165,22 @@ def parse_args():
     parser.add_argument('--adap_tau_beta', type=float, default=1.0,
                         help='beta')
     
+    # InvCF
+    parser.add_argument('--lambda1', type=float, default=1e-5,
+                        help='weight for popularity embedding loss')
+    parser.add_argument('--lambda2', type=float, default=0,
+                        help='weight for dicor loss')
+    parser.add_argument('--lambda3', type=float, default=1e-4,
+                        help='weight for concat loss')
+    parser.add_argument('--n_factors', type=float, default=4,
+                        help='divided by embeded size')
+    parser.add_argument('--distype', type=str, default='dcor',
+                        help='type of discrepancy function used, [l1,l2,dcor,mmd]')
+    parser.add_argument('--need_distance', type=int, default=1,
+                        help='whether include calculation of distance')
+    parser.add_argument('--kernel', type=str, default='rbf',
+                        help='type of kernel in mmd loss ["multiscale","rbf"]')
+    
     return parser.parse_args()
 
 
