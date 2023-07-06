@@ -14,7 +14,7 @@ class INFONCE_RS(AbstractRS):
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
 
     def modify_saveID(self):
-        self.saveID += "_tau" + str(self.model.tau)
+        self.saveID += "_tau=" + str(self.model.tau)
 
     def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
