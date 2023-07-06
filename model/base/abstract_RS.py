@@ -15,6 +15,7 @@ class AbstractRS(nn.Module):
         self.device = torch.device(args.cuda)
         self.test_only = args.test_only
         self.dataset = args.dataset
+        self.inbatch = self.args.infonce == 1 and self.args.neg_sample == -1
     
         # basic hyperparameters
         self.lr = args.lr
@@ -37,9 +38,9 @@ class AbstractRS(nn.Module):
         self.item_pop_max = self.data.item_pop_max 
 
         # load the model
-        print('from model.'+ args.modeltype + ' import ' + args.modeltype)
-        exec('from model.'+ args.modeltype + ' import ' + args.modeltype) # import the model first
-        self.model = eval(args.modeltype + '(args, self.data)') # initialize the model with the graph
+        required_model = args.modeltype + '_batch' if self.inbatch else args.modeltype
+        exec('from model.'+ required_model + ' import ' + required_model) # import the model first
+        self.model = eval(required_model + '(args, self.data)') # initialize the model with the graph
         self.model.cuda(self.device)
 
         # loading and saving
