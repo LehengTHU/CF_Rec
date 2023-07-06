@@ -7,8 +7,8 @@ def parse_args():
                         help='we only want test value.')
     parser.add_argument('--seed', type=int, default=101,
                         help='Random seed.')
-    parser.add_argument('--clear_checkpoints', nargs='?', default=False,
-                        help='Clean the earlier checkpoint.')
+    parser.add_argument('--clear_checkpoints', action="store_true",
+                        help='Whether clear the earlier checkpoints.')
     parser.add_argument("--candidate", action="store_true",
                         help="whether using the candidate set")
     parser.add_argument('--test_only', nargs='?', default=False,
