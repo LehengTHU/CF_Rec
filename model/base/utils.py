@@ -11,6 +11,7 @@ import itertools
 import torch
 import time
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 # from evaluator import ProxyEvaluator
 import collections
@@ -478,9 +479,56 @@ def align_loss(x, y, alpha=2):
 def uniform_loss(x, t=2):
     return torch.pdist(x, p=2).pow(2).mul(-t).exp().mean().log()
 
-def load_not_candidate():
-    pass
+def visualize_and_save_log(file_dir, dataset_name, show=False):
+    # 逐行读取file_dir文件, 只保留
+    if(dataset_name == "tencent_synthetic"):
+        pass
+    else:
+        id_recall, id_ndcg, ood_recall, ood_ndcg = [], [], [], []
 
-def load_evaluators():
-    # pass
-    return None, None
+        with open(file_dir, 'r') as f:
+            # count = 0
+            for line in f:
+                line = line.split(' ')
+                if("valid" in line[0]):
+                    id_recall.append(float(line[1][:-1]))
+                    id_ndcg.append(float(line[7][:-1]))
+                if("test_ood" in line[0]):
+                    ood_recall.append(float(line[1][:-1]))
+                    ood_ndcg.append(float(line[7][:-1]))
+
+        epochs = list(range(0, len(id_recall)))
+        epochs = [i*5 for i in epochs]
+        # 定义表格
+        result = pd.DataFrame({'epochs': epochs, 'id_recall': id_recall, 'ood_recall': ood_recall, 'id_ndcg': id_ndcg, 'ood_ndcg': ood_ndcg})
+        # df是除了最后一行的所有行
+        df = result.iloc[:-1, :]
+
+        fig=plt.figure()
+        x = df.epochs
+        y1 = df.id_recall
+        y2 = df.ood_recall
+        print(max(y1), max(y2), 1.1*max(y1), 1.1*max(y2))
+        #ax1显示y1  ,ax2显示y2 
+        ax1=fig.subplots()
+        ax2=ax1.twinx()    #使用twinx()，得到与ax1 对称的ax2,共用一个x轴，y轴对称（坐标不对称）
+        ax1.plot(x,y1,'g-', label='id_recall')
+        ax2.plot(x,y2,'b--', label='ood_recall')
+        # 坐标轴范围
+        ax1.set_ylim(min(y1), 1.15*(max(y1)-min(y1))+min(y1))
+        ax2.set_ylim(min(y2), 1.15*(max(y2)-min(y2))+min(y2))
+
+        ax1.set_xlabel('epochs')
+        ax1.set_ylabel('id_recall')
+        ax2.set_ylabel('ood_recall')
+        # legend
+        ax1.legend(loc='upper left')
+        ax2.legend(loc='upper right')
+
+        base_path = file_dir[:-10]
+        save_path = base_path + "/train_log.png"
+        plt.savefig(save_path)
+        if(show):
+            plt.show()
+        save_path = base_path + "/train_log.csv"
+        result.to_csv(save_path, index=False)

@@ -27,7 +27,7 @@ class template_RS(AbstractRS):
     def set_optimizer(self):
         raise NotImplementedError
 
-    def train_one_epoch(self, epoch, pbar):
+    def train_one_epoch(self, epoch):
         raise NotImplementedError
     
 

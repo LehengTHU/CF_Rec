@@ -23,6 +23,7 @@ class AbstractRS(nn.Module):
         self.verbose = args.verbose
 
         # load the data
+        self.dataset_name = args.dataset
         self.data = Data(args)
         self.data.load_data() # load data from the path
         self.n_users = self.data.n_users
@@ -61,6 +62,12 @@ class AbstractRS(nn.Module):
 
     # the whole pipeline of the training process
     def execute(self):
+
+        # write args
+        perf_str = str(self.args)
+        with open(self.base_path + 'stats_{}.txt'.format(self.args.saveID),'a') as f:
+            f.write(perf_str+"\n")
+
         # train the model if not test only
         if not self.test_only:
             print("start training") 
@@ -95,6 +102,8 @@ class AbstractRS(nn.Module):
             self.document_running_loss(losses, epoch, t2-t1) # report the loss
             if (epoch + 1) % self.verbose == 0: # evaluate the model
                 self.eval_and_check_early_stop(epoch)
+
+        visualize_and_save_log(self.base_path +'stats_{}.txt'.format(self.args.saveID), self.dataset_name)
 
     #! must be implemented by the subclass
     def train_one_epoch(self, epoch):
