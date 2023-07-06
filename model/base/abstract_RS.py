@@ -42,7 +42,7 @@ class AbstractRS(nn.Module):
         self.model.cuda(self.device)
 
         # loading and saving
-        self.saveID = args.saveID + str(args.dsc) + "Ks=" + str(args.Ks) + 'patience=' + str(args.patience)\
+        self.saveID = args.saveID + str(args.dsc) + "_Ks=" + str(args.Ks) + 'patience=' + str(args.patience)\
             + "_n_layers=" + str(args.n_layers) + "batch_size=" + str(args.batch_size)\
                 + "neg_sample=" + str(args.neg_sample) + "lr=" + str(args.lr) 
         
@@ -89,16 +89,15 @@ class AbstractRS(nn.Module):
             if self.flag: # early stop
                 break
             # All models
-            pbar = tqdm(enumerate(self.data.train_loader), mininterval=2, total = len(self.data.train_loader))
             t1=time.time()
-            losses = self.train_one_epoch(epoch, pbar) # train one epoch
+            losses = self.train_one_epoch(epoch) # train one epoch
             t2=time.time()
             self.document_running_loss(losses, epoch, t2-t1) # report the loss
             if (epoch + 1) % self.verbose == 0: # evaluate the model
                 self.eval_and_check_early_stop(epoch)
 
     #! must be implemented by the subclass
-    def train_one_epoch(self, pbar):
+    def train_one_epoch(self, epoch):
         raise NotImplementedError
     
     def modify_saveID(self):
@@ -107,9 +106,9 @@ class AbstractRS(nn.Module):
     def set_optimizer(self):
         self.optimizer = torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == True], lr=self.lr)
 
-    def document_running_loss(self, losses:list, epoch, t_one_epoch):
+    def document_running_loss(self, losses:list, epoch, t_one_epoch, prefix=""):
         loss_str = ', '.join(['%.5f']*len(losses)) % tuple(losses)
-        perf_str = 'Epoch %d [%.1fs]: train==[' % (
+        perf_str = prefix + 'Epoch %d [%.1fs]: train==[' % (
                 epoch, t_one_epoch) + loss_str + ']'
         with open(self.base_path + 'stats_{}.txt'.format(self.args.saveID),'a') as f:
                 f.write(perf_str+"\n")

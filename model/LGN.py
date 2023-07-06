@@ -12,8 +12,10 @@ class LGN_RS(AbstractRS):
     def __init__(self, args) -> None:
         super().__init__(args)
 
-    def train_one_epoch(self, epoch, pbar):
+    def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
+
+        pbar = tqdm(enumerate(self.data.train_loader), mininterval=2, total = len(self.data.train_loader))
         for batch_i, batch in pbar:          
             
             batch = [x.cuda(self.device) for x in batch]

@@ -4,14 +4,26 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import matplotlib.pyplot as plt
+from model.base.utils import *
+
 from model.base.abstract_model import AbstractModel
 from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
+
 
 class AdvInfoNCE_RS(AbstractRS):
     def __init__(self, args) -> None:
         super().__init__(args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
+        self.adv_interval = args.adv_interval
+        self.adv_epochs = args.adv_epochs
+        self.adv_lr = args.adv_lr
+        self.warm_up_epochs = args.warm_up_epochs
+        self.eta_epochs = args.eta_epochs
+
+        self.current_eta = 0 # adversarial training epochs
+        self.eta_per_epoch = {} # document the disturbance strength for each user
 
     def set_optimizer(self):
         self.optimizer = torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == True], lr=self.lr)
@@ -22,8 +34,14 @@ class AdvInfoNCE_RS(AbstractRS):
             '_al_' + str(self.args.adv_lr) + '_w_' + str(self.args.warm_up_epochs) + '_eta_' + str(self.args.eta_epochs) + \
                 '_patience_' + str(self.args.patience) + '_k_neg_' + str(self.args.k_neg)
 
-    def train_one_epoch(self, epoch, optimizer, pbar):
+    def train_one_epoch(self, epoch):
+        # adversarial train the the weights of negative items
+        if (epoch + 3)  % self.adv_interval == 0 and self.current_eta < self.eta_epochs and epoch > self.warm_up_epochs:
+            self.adversarial_training()
+
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
+        
+        pbar = tqdm(enumerate(self.data.train_loader), mininterval=2, total = len(self.data.train_loader))
         for batch_i, batch in pbar:          
 
             batch = [x.cuda(self.device) for x in batch]
@@ -34,12 +52,12 @@ class AdvInfoNCE_RS(AbstractRS):
                 neg_items_pop = batch[6]
 
             self.model.train()
-            mf_loss, reg_loss = self.model(users, pos_items, neg_items)
+            mf_loss, reg_loss, reg_loss_prob, eta_u_, p_negative = self.model(users, pos_items, neg_items)
             loss = mf_loss + reg_loss
 
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            self.optimizer.step()
 
             running_loss += loss.detach().item()
             running_reg_loss += reg_loss.detach().item()
@@ -47,6 +65,98 @@ class AdvInfoNCE_RS(AbstractRS):
             num_batches += 1
         return [running_loss/num_batches, running_mf_loss/num_batches, running_reg_loss/num_batches]
     
+    def adversarial_training(self):
+        print("start adversarial training...")
+        print(f"current eta: {self.current_eta}/{self.eta_epochs}")
+        running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
+        self.model.freeze_prob(False)
+        for epoch_adv in range(self.adv_epochs):
+            print(f"current adv epoch: {epoch_adv}/{self.adv_epochs}")
+
+            adv_pbar = tqdm(enumerate(self.data.train_loader), mininterval=2, total = len(self.data.train_loader))
+
+            t1 = time.time()
+            eta_u = {}
+            for batch_i, batch in adv_pbar: 
+                batch = [x.cuda(self.device) for x in batch]
+                users, pos_items, users_pop, pos_items_pop, pos_weights  = batch[0], batch[1], batch[2], batch[3], batch[4]
+
+                if self.args.infonce == 0 or self.args.neg_sample != -1:
+                    neg_items = batch[5]
+                    neg_items_pop = batch[6]
+
+                self.model.train()
+                mf_loss, reg_loss, reg_loss_prob, eta_u_, p_negative = self.model(users, pos_items, neg_items)
+                loss = reg_loss_prob - mf_loss # maximize the mf_loss 
+
+                for u, kl_ds_ in eta_u_.items():
+                    if u in eta_u.keys():
+                        eta_u[u].extend(kl_ds_)
+                    else:
+                        eta_u[u] = kl_ds_
+
+                self.adv_optimizer.zero_grad()
+                loss.backward()
+                self.adv_optimizer.step()
+
+                running_loss += loss.detach().item()
+                running_reg_loss += reg_loss_prob.detach().item()
+                running_mf_loss += mf_loss.detach().item()
+                num_batches += 1
+            
+            t2 = time.time()
+            self.document_running_loss([running_loss/num_batches, running_mf_loss/num_batches, running_reg_loss/num_batches], self.current_eta, t2-t1, "Adv")
+            self.current_eta += 1
+
+            self.document_adv_weights(p_negative.cpu().detach().numpy(), neg_items_pop.cpu().detach().numpy())
+            self.document_eta(eta_u)
+
+        self.model.freeze_prob(True)
+    
+    def document_adv_weights(self, p_negative, neg_items_pop):
+        p_negative_sorted = np.zeros(p_negative.shape)
+        for i in range(len(neg_items_pop)):
+            p_negative_sorted[i] = p_negative[i][neg_items_pop[i].argsort()]   
+
+        save_fig_path = self.base_path + "/distribution"
+        ensureDir(save_fig_path)
+        # after sorting
+        idxs = np.random.randint(0, len(neg_items_pop), 9)
+        fig, axes = plt.subplots(3, 3, figsize=(10, 10))
+
+        # random sample 9 users
+        fig.suptitle('p_negative_sorted ')
+        for i in range(3):
+            for j in range(3):
+                idx = idxs[i*3+j]
+                axes[i, j].bar(np.arange(0,len(p_negative_sorted[idx]),1), p_negative_sorted[idx], align='center', alpha=0.5)
+        plt.savefig(save_fig_path + f"/{self.current_eta}_p_negative_sorted.png")
+        plt.close()
+
+        # mean
+        mean_p_negative = np.mean(p_negative_sorted, axis=0)
+        plt.bar(np.arange(0,len(mean_p_negative),1), mean_p_negative, align='center', alpha=0.5)
+        plt.title("mean_p_negative_sorted ")
+        plt.savefig(save_fig_path + f"/{self.current_eta}_mean_p_negative_sorted.png") # save
+        plt.close()
+
+    def document_eta(self, eta_u):
+        
+        for u, kl_ds in eta_u.items():
+            if u not in self.eta_per_epoch.keys():
+                self.eta_per_epoch[u] = [np.mean(kl_ds)]
+            else:
+                self.eta_per_epoch[u].append(np.mean(kl_ds))
+            # self.eta_per_epoch[u] = self.eta_per_epoch.get(u, []).extend([np.mean(kl_ds)])
+        # print(self.eta_per_epoch)
+        if 'mean' not in self.eta_per_epoch.keys():
+            self.eta_per_epoch['mean'] = [np.mean([np.mean(v) for v in eta_u.values()])]
+        else:
+            self.eta_per_epoch['mean'].append(np.mean([np.mean(v) for v in eta_u.values()]))
+        print(np.mean([np.mean(v) for v in eta_u.values()]))
+
+        with open(self.base_path + 'stats_{}.txt'.format(self.args.saveID), 'a') as f:
+            f.write("mean_eta" + "\t" + str(self.eta_per_epoch['mean']) + "\n")
 
 class AdvInfoNCE(AbstractModel):
     def __init__(self, args, data) -> None:
@@ -66,8 +176,8 @@ class AdvInfoNCE(AbstractModel):
                 nn.Linear(self.emb_dim, self.w_emb_dim),
                 nn.ReLU())
         else: # Embedding version
-            self.embed_user_p = nn.Embedding(self.n_users, self.w_emb_dim)
-            self.embed_item_p = nn.Embedding(self.n_items, self.w_emb_dim)
+            self.embed_user_p = nn.Embedding(self.data.n_users, self.w_emb_dim)
+            self.embed_item_p = nn.Embedding(self.data.n_items, self.w_emb_dim)
             nn.init.xavier_normal_(self.embed_user_p.weight)
             nn.init.xavier_normal_(self.embed_item_p.weight)
         self.freeze_prob(True)
@@ -95,9 +205,7 @@ class AdvInfoNCE(AbstractModel):
 
         s_negative = torch.matmul(torch.unsqueeze(users_p_emb, 1), 
                                     neg_p_emb.permute(0, 2, 1)).squeeze(dim=1)
-
         p_negative = torch.softmax(s_negative, dim=1) # score for negative samples
-
 
         # main branch
         # use cosine similarity
@@ -111,7 +219,6 @@ class AdvInfoNCE(AbstractModel):
                                        neg_emb.permute(0, 2, 1)).squeeze(dim=1)
 
         numerator = torch.exp(pos_ratings / self.tau)
-        
         denominator = numerator + self.k_neg * int(p_negative.shape[1]) * torch.sum(torch.exp(neg_ratings / self.tau)*p_negative, dim = 1) #@ multiply with N
 
         ssm_loss = torch.mean(torch.negative(torch.log(numerator/denominator)))

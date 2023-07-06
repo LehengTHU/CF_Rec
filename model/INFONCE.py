@@ -16,8 +16,10 @@ class INFONCE_RS(AbstractRS):
     def modify_saveID(self):
         self.saveID += "_tau" + str(self.model.tau)
 
-    def train_one_epoch(self, epoch, pbar):
+    def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0
+
+        pbar = tqdm(enumerate(self.data.train_loader), mininterval=2, total = len(self.data.train_loader))
         for batch_i, batch in pbar:          
 
             batch = [x.cuda(self.device) for x in batch]
