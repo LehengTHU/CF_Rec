@@ -51,9 +51,9 @@ class AbstractRS(nn.Module):
         self.modify_saveID()
 
         if args.n_layers > 0 and args.modeltype != "LGN":
-            self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset, args.modeltype, self.saveID)
+            self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset, required_model, self.saveID)
         else:
-            self.base_path = './weights/{}/{}/{}'.format(self.dataset, args.modeltype, self.saveID)
+            self.base_path = './weights/{}/{}/{}'.format(self.dataset, required_model, self.saveID)
         self.checkpoint_buffer=[]
         ensureDir(self.base_path)
         
