@@ -39,7 +39,7 @@ class AbstractRS(nn.Module):
 
         # load the model
         required_model = args.modeltype + '_batch' if self.inbatch else args.modeltype
-        exec('from model.'+ required_model + ' import ' + required_model) # import the model first
+        exec('from model.'+ args.modeltype + ' import ' + required_model) # import the model first
         self.model = eval(required_model + '(args, self.data)') # initialize the model with the graph
         self.model.cuda(self.device)
 

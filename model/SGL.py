@@ -8,14 +8,16 @@ from model.base.abstract_model import AbstractModel
 from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
-class XSimGCL_RS(AbstractRS):
+import random
+import scipy.sparse as sp
+
+class SGL_RS(AbstractRS):
     def __init__(self, args) -> None:
         super().__init__(args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
 
-
     def modify_saveID(self):
-        self.saveID += "temp=" + str(self.args.temp_cl) + "layer_cl=" + str(self.args.layer_cl) + "lambda_cl=" + str(self.args.lambda_cl)+ "eps_XSimGCL=" + str(self.args.eps_XSimGCL)
+        self.saveID += "temp=" + str(self.args.temp_cl) + "lambda_cl=" + str(self.args.lambda_cl)+ "droprate=" + str(self.args.droprate)
 
     def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_cl_loss, running_reg_loss, num_batches = 0, 0, 0, 0, 0
@@ -31,7 +33,9 @@ class XSimGCL_RS(AbstractRS):
                 neg_items_pop = batch[6]
 
             self.model.train()
-            mf_loss, cl_loss, reg_loss = self.model(users, pos_items, neg_items)
+            dropped_adj1 = self.model.get_enhanced_adj(self.data.ui_mat, self.model.droprate)
+            dropped_adj2 = self.model.get_enhanced_adj(self.data.ui_mat, self.model.droprate)
+            mf_loss, cl_loss, reg_loss = self.model(users, pos_items, neg_items, dropped_adj1, dropped_adj2)
             loss = mf_loss + cl_loss + reg_loss
 
             self.optimizer.zero_grad()
@@ -44,43 +48,71 @@ class XSimGCL_RS(AbstractRS):
             running_reg_loss += reg_loss.detach().item()
             num_batches += 1
         return [running_loss/num_batches, running_mf_loss/num_batches, running_cl_loss/num_batches, running_reg_loss/num_batches]
-    
 
-class XSimGCL(AbstractModel):
+class SGL(AbstractModel):
     def __init__(self, args, data) -> None:
         super().__init__(args, data)
         self.temp_cl = args.temp_cl
-        self.layer_cl = args.layer_cl
         self.lambda_cl = args.lambda_cl
-        self.eps_XSimGCL = args.eps_XSimGCL
+        self.droprate = args.droprate
 
-    def compute(self, perturbed=False):
+    def compute(self, perturbed_adj=None):
         users_emb = self.embed_user.weight
         items_emb = self.embed_item.weight
         all_emb = torch.cat([users_emb, items_emb])
 
-        embs = []
-        emb_cl = all_emb
-        g_droped = self.Graph
+        embs = [all_emb]
+
 
         for layer in range(self.n_layers):
-            all_emb = torch.sparse.mm(g_droped, all_emb)
-            if perturbed:
-                random_noise = torch.rand_like(all_emb).cuda() # add noise
-                all_emb += torch.sign(all_emb) * F.normalize(random_noise, dim=-1) * self.eps_XSimGCL
+            if perturbed_adj is not None:
+                all_emb = torch.sparse.mm(perturbed_adj, all_emb)
+            else:
+                all_emb = torch.sparse.mm(self.Graph, all_emb)
             embs.append(all_emb)
-            if layer==self.layer_cl-1:
-                emb_cl = all_emb
+
         embs = torch.stack(embs, dim=1)
         light_out = torch.mean(embs, dim=1)
 
         users, items = torch.split(light_out, [self.data.n_users, self.data.n_items])
-        users_cl, items_cl = torch.split(emb_cl, [self.data.n_users, self.data.n_items]) # view of noise
 
-        if perturbed:
-            return users, items, users_cl, items_cl
         return users, items
     
+    def get_enhanced_adj(self, ui_mat, droprate):
+        adj_shape = ui_mat.get_shape()
+        edge_count = ui_mat.count_nonzero()
+        row_idx, col_idx = ui_mat.nonzero()
+        keep_idx = random.sample(range(edge_count), int(edge_count * (1 - droprate)))
+        user_np = np.array(row_idx)[keep_idx]
+        item_np = np.array(col_idx)[keep_idx]
+        edges = np.ones_like(user_np, dtype=np.float32)
+        dropped_adj = sp.csr_matrix((edges, (user_np, item_np)), shape=adj_shape)
+
+        adj_shape = dropped_adj.get_shape()
+        n_nodes = adj_shape[0]+adj_shape[1]
+        (user_np_keep, item_np_keep) = dropped_adj.nonzero()
+        ratings_keep = dropped_adj.data
+        tmp_adj = sp.csr_matrix((ratings_keep, (user_np_keep, item_np_keep + adj_shape[0])),shape=(n_nodes, n_nodes),dtype=np.float32)
+        tmp_adj = tmp_adj + tmp_adj.T
+
+        shape = tmp_adj.get_shape()
+        rowsum = np.array(tmp_adj.sum(1))
+
+        d_inv = np.power(rowsum, -0.5).flatten()
+        d_inv[np.isinf(d_inv)] = 0.
+        d_mat_inv = sp.diags(d_inv)
+        norm_adj_tmp = d_mat_inv.dot(tmp_adj)
+        norm_adj_mat = norm_adj_tmp.dot(d_mat_inv)
+
+        coo = norm_adj_mat.tocoo().astype(np.float32)
+        row = torch.Tensor(coo.row).long()
+        col = torch.Tensor(coo.col).long()
+        index = torch.stack([row, col])
+        data = torch.FloatTensor(coo.data)
+        enhanced_adj_mat = torch.sparse.FloatTensor(index, data, torch.Size(coo.shape))
+
+        return enhanced_adj_mat.coalesce().cuda(self.device)
+
     def InfoNCE(self, view1, view2, temperature, b_cos = True):
         if b_cos:
             view1, view2 = F.normalize(view1, dim=1), F.normalize(view2, dim=1)
@@ -90,17 +122,21 @@ class XSimGCL(AbstractModel):
         ttl_score = torch.exp(ttl_score / temperature).sum(dim=1)
         cl_loss = -torch.log(pos_score / ttl_score+10e-6)
         return torch.mean(cl_loss)
-    
-    def cal_cl_loss(self, idx, user_view1,user_view2,item_view1,item_view2):
-        # 算的一个batch中的
+
+    def cal_cl_loss(self, idx, perturbed_mat1, perturbed_mat2):
         u_idx = torch.unique(torch.Tensor(idx[0]).type(torch.long)).cuda()
         i_idx = torch.unique(torch.Tensor(idx[1]).type(torch.long)).cuda()
-        user_cl_loss = self.InfoNCE(user_view1[u_idx], user_view2[u_idx], self.temp_cl)
-        item_cl_loss = self.InfoNCE(item_view1[i_idx], item_view2[i_idx], self.temp_cl)
+        user_view_1, item_view_1 = self.compute(perturbed_mat1)
+        user_view_2, item_view_2 = self.compute(perturbed_mat2)
+        # view1 = torch.cat((user_view_1[u_idx],item_view_1[i_idx]),0)
+        # view2 = torch.cat((user_view_2[u_idx],item_view_2[i_idx]),0)
+        user_cl_loss = self.InfoNCE(user_view_1[u_idx], user_view_2[u_idx], self.temp_cl)
+        item_cl_loss = self.InfoNCE(item_view_1[i_idx], item_view_2[i_idx], self.temp_cl)
         return user_cl_loss + item_cl_loss
+        # return self.InfoNCE(view1,view2,self.temp_cl)
 
-    def forward(self, users, pos_items, neg_items):
-        all_users, all_items, all_users_cl, all_items_cl = self.compute(perturbed=True)
+    def forward(self, users, pos_items, neg_items, dropped_adj1, dropped_adj2):
+        all_users, all_items = self.compute()
 
         users_emb = all_users[users]
         pos_emb = all_items[pos_items]
@@ -110,10 +146,10 @@ class XSimGCL(AbstractModel):
         negEmb0 = self.embed_item(neg_items)
 
         # contrastive loss
-        cl_loss = self.lambda_cl * self.cal_cl_loss([users,pos_items], all_users, all_users_cl, all_items, all_items_cl)
+        cl_loss = self.lambda_cl * self.cal_cl_loss([users,pos_items], dropped_adj1, dropped_adj2)
 
         # main loss
-        # use cosine similarity to calculate the scores
+        # use cosine similarity as prediction score
         if(self.train_norm == True):
             users_emb = F.normalize(users_emb, dim = -1)
             pos_emb = F.normalize(pos_emb, dim = -1)

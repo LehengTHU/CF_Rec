@@ -130,14 +130,11 @@ dmypy.json
 
 
 
-data/coat/adj_mat.npz
-data/coat/s_pre_adj_mat.npz
-data/yahoo.new/adj_mat.npz
-data/yahoo.new/s_pre_adj_mat.npz
-data/tencent_synthetic/adj_mat.npz
-data/tencent_synthetic/s_pre_adj_mat.npz
-data/kuairec2/adj_mat.npz
-data/kuairec2/s_pre_adj_mat.npz
+data/coat/*.npz
+data/yahoo.new/*.npz
+data/tencent_synthetic/*.npz
+data/kuairec2/*.npz
+
 
 logs/
 weights/
