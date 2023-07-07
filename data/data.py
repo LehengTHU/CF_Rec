@@ -137,6 +137,15 @@ class Data:
         self.train_data = None
         self.train_loader = None
 
+        self.load_data()
+        # model-specific attributes
+        self.add_special_model_attr(args)
+
+        self.get_dataloader()
+
+    def add_special_model_attr(self, args):
+        pass
+
     # self.trainUser, self.trainItem 分别是训练集中的用户和物品，交互列表
     def load_data(self):
         self.train_user_list, train_item, self.train_item_list, self.trainUser, self.trainItem = helper_load_train(
@@ -157,23 +166,18 @@ class Data:
             temp_lst = [train_item, valid_item, self.test_ood_item_list, self.test_id_item_list]
 
         self.users = list(set(self.train_user_list.keys()))
-        if(self.dataset == "kuairec_ood" or self.dataset == "kuairec1" or self.dataset == "kuairec2" or self.dataset == "kuairec0.8" or self.dataset == "kuairec_wc"):
+        if('kuairec' in self.dataset):
             self.items = list(range(max(set().union(*temp_lst))+1))
         else:
             self.items = list(set().union(*temp_lst))
             self.items.sort()
         # print(self.items)
         self.n_users = len(self.users)
-        if(self.dataset == "Coat" or self.dataset == "yelp_ood"):
-            self.n_items = max(self.items)+1
-        else:
-            self.n_items = len(self.items)
+        self.n_items = len(self.items)
 
         
-        # self.n_items = len(self.items)
         print("n_users: ", self.n_users)
         print("n_items: ", self.n_items)
-        # print(self.train_item_list)
         
         for i in range(self.n_users):
             self.n_observations += len(self.train_user_list[i])
@@ -242,47 +246,15 @@ class Data:
         self.weight_dict={i:self.weights[i] for i in range(len(self.weights))}
         self.sorted_weight=sorted(self.weight_dict.items(),key=lambda x: x[1])
 
-        # self.sample_pos_small={}
-        # self.sample_pos_big={}
-        # lo=0
-        # hi=1
-        # while hi<len(self.weights):
-        #     if self.sorted_weight[hi][1]>self.sorted_weight[lo][1]:
-
-        #         for i in range(lo,hi):
-        #             self.sample_pos_small[self.sorted_weight[i][0]]=hi
-        #         lo=hi
-        #     hi+=1     
-        # for i in range(lo,hi):
-        #     self.sample_pos_small[self.sorted_weight[i][0]]=hi
-
-        # lo=len(self.weights)-2
-        # hi=len(self.weights)-1
-        # while lo>=0:
-        #     if self.sorted_weight[lo][1]<self.sorted_weight[hi][1]:
-
-        #         for i in range(hi,lo,-1):
-        #             self.sample_pos_big[self.sorted_weight[i][0]]=lo
-        #         hi=lo
-        #     lo-=1
-        
-        # for i in range(hi,lo,-1):
-        #     self.sample_pos_big[self.sorted_weight[i][0]]=lo
-
         self.sample_items = np.array(self.items, dtype=int)
 
-
-        # BISER
-        if(self.modeltype == "BISER"):
-            self.train_ui_matrix = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                              shape=(self.n_users, self.n_items)).toarray()
-            self.train_iu_matrix = np.copy( self.train_ui_matrix.T )
-
+        
+    def get_dataloader(self):
         self.train_data = TrainDataset(self.modeltype, self.users, self.train_user_list, self.user_pop_idx, self.item_pop_idx, \
                                         self.neg_sample, self.n_observations, self.n_items, self.sample_items, self.weights, self.infonce, self.items)
 
         self.train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, drop_last=True)
-        
+
     def get_weight(self):
 
         if 's' in self.IPStype:
@@ -317,17 +289,6 @@ class Data:
         if self.Graph is None:
             try:
                 pre_adj_mat = sp.load_npz(self.path + '/s_pre_adj_mat.npz')
-                if(self.modeltype == "SGL"):
-                    try:
-                        self.ui_mat = sp.load_npz(self.path + '/ui_mat.npz')
-                    except:
-                        self.trainItem = np.array(self.trainItem)
-                        self.trainUser = np.array(self.trainUser)
-                        self.ui_mat = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                              shape=(self.n_users, self.n_items))
-                        sp.save_npz(self.path + '/ui_mat.npz', self.ui_mat)
-                        print("successfully saved ui_mat...")
-                    
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
             #@ 如果没有预处理的邻接矩阵，就生成一个
@@ -339,7 +300,7 @@ class Data:
                 self.trainItem = np.array(self.trainItem)
                 self.trainUser = np.array(self.trainUser)
                 self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
-                                              shape=(self.n_users, self.n_items))
+                                                shape=(self.n_users, self.n_items))
                 R = self.UserItemNet.tolil()
                 adj_mat[:self.n_users, self.n_users:] = R
                 adj_mat[self.n_users:, :self.n_users] = R.T
@@ -406,7 +367,6 @@ class TrainDataset(torch.utils.data.Dataset):
         if self.train_user_list[user] == []:
             pos_items = 0
         else:
-            # pos_item是随机选的，train_user_list是用户的历史记录
             pos_item = rd.choice(self.train_user_list[user])
 
         user_pop = self.user_pop_idx[user]
@@ -418,15 +378,6 @@ class TrainDataset(torch.utils.data.Dataset):
             return user, pos_item, user_pop, pos_item_pop, pos_weight
 
         elif self.infonce == 1 and self.neg_sample != -1:
-            # neg_item的采样方式是随机采样，不是按照popularity采样
-            #@ 选取的为非历史记录的item，即负样本，用exclusion来排除
-            #? 主动引入了曝光偏差
-            # print("1", self.n_items, "2", user, "3", len(self.train_user_list[user]), "4", max(self.train_user_list[user]), "5", len(self.train_user_list[user])>self.n_items)
-            # if(len(self.train_user_list[user])<self.n_items):
-            #     neg_items = randint_choice(self.n_items, size=self.neg_sample, exclusion=self.train_user_list[user])
-            #     neg_items_pop = self.item_pop_idx[neg_items]
-            # else:
-            #     print("????????")
             neg_items = randint_choice(self.n_items, size=self.neg_sample, exclusion=self.train_user_list[user])
             neg_items_pop = self.item_pop_idx[neg_items]
 
@@ -434,10 +385,7 @@ class TrainDataset(torch.utils.data.Dataset):
 
         else:
             while True:
-                # if(self.n_items <= neg_item):
-                #     print("????")
                 idx = rd.randint(0, self.n_items -1)
-                # print(idx, idx > len(self.items), len(self.items))
                 neg_item = self.items[idx]
                 
                 if neg_item not in self.train_user_list[user]:

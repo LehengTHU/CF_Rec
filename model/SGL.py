@@ -8,6 +8,10 @@ from model.base.abstract_model import AbstractModel
 from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
+# special for SGL
+from data.data import Data
+from scipy.sparse import csr_matrix
+
 import random
 import scipy.sparse as sp
 
@@ -45,6 +49,22 @@ class SGL_RS(AbstractRS):
             running_reg_loss += reg_loss.detach().item()
             num_batches += 1
         return [running_loss/num_batches, running_mf_loss/num_batches, running_cl_loss/num_batches, running_reg_loss/num_batches]
+
+class SGL_Data(Data):
+    def __init__(self, args):
+        super().__init__(args)
+    
+    def add_special_model_attr(self, args):
+        try:
+            self.ui_mat = sp.load_npz(self.path + '/ui_mat.npz')
+            print("successfully loaded ui_mat...")
+        except:
+            self.trainItem = np.array(self.trainItem)
+            self.trainUser = np.array(self.trainUser)
+            self.ui_mat = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
+                                    shape=(self.n_users, self.n_items))
+            sp.save_npz(self.path + '/ui_mat.npz', self.ui_mat)
+            print("successfully saved ui_mat...")
 
 class SGL(AbstractModel):
     def __init__(self, args, data) -> None:
@@ -163,3 +183,5 @@ class SGL(AbstractModel):
         reg_loss = self.decay * regularizer
 
         return mf_loss, cl_loss, reg_loss
+    
+

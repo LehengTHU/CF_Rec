@@ -16,7 +16,7 @@ class AbstractRS(nn.Module):
         self.special_args = special_args
         self.device = torch.device(args.cuda)
         self.test_only = args.test_only
-        self.dataset = args.dataset
+
         self.Ks = args.Ks
         self.patience = args.patience
         self.modeltype = args.modeltype
@@ -31,8 +31,14 @@ class AbstractRS(nn.Module):
 
         # load the data
         self.dataset_name = args.dataset
-        self.data = Data(args) # load data from the path
-        self.data.load_data()
+        try:
+            print('from model.'+ args.modeltype + ' import ' + args.modeltype + '_Data')
+            exec('from model.'+ args.modeltype + ' import ' + args.modeltype + '_Data') # load special dataset
+            self.data = eval(args.modeltype + '_Data(args)') 
+        except:
+            print("no special dataset")
+            self.data = Data(args) # load data from the path
+        
         self.n_users = self.data.n_users
         self.n_items = self.data.n_items
         self.train_user_list = self.data.train_user_list
@@ -123,9 +129,9 @@ class AbstractRS(nn.Module):
         self.modify_saveID()
 
         if self.n_layers > 0 and self.modeltype != "LGN":
-            self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset, self.running_model, self.saveID)
+            self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset_name, self.running_model, self.saveID)
         else:
-            self.base_path = './weights/{}/{}/{}'.format(self.dataset, self.running_model, self.saveID)
+            self.base_path = './weights/{}/{}/{}'.format(self.dataset_name, self.running_model, self.saveID)
         self.checkpoint_buffer=[]
         ensureDir(self.base_path)
 
@@ -251,7 +257,7 @@ class AbstractRS(nn.Module):
     def get_evaluators(self, data, not_candidate_dict=None, pop_mask=None):
         #if not self.args.pop_test:
         K_value = self.args.Ks
-        if(self.dataset == "tencent_synthetic"):
+        if(self.dataset_name == "tencent_synthetic"):
             eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value])
             eval_test_ood_1 = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list_1,top_k=[K_value],\
                                     dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list_2,data.test_ood_user_list_3]))
@@ -269,7 +275,7 @@ class AbstractRS(nn.Module):
             eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list]))
             eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list]))
        
-        if(self.dataset == "tencent_synthetic" or self.dataset == "kuairec_ood"):
+        if(self.dataset_name == "tencent_synthetic" or self.dataset_name == "kuairec_ood"):
             evaluators=[eval_valid, eval_test_ood_1, eval_test_ood_2, eval_test_ood_3]
             eval_names=["valid","test_ood_1", "test_ood_2", "test_ood_3"]
         else:
