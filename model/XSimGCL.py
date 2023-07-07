@@ -9,13 +9,9 @@ from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
 class XSimGCL_RS(AbstractRS):
-    def __init__(self, args) -> None:
-        super().__init__(args)
+    def __init__(self, args, special_args) -> None:
+        super().__init__(args, special_args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
-
-
-    def modify_saveID(self):
-        self.saveID += "temp=" + str(self.args.temp_cl) + "layer_cl=" + str(self.args.layer_cl) + "lambda_cl=" + str(self.args.lambda_cl)+ "eps_XSimGCL=" + str(self.args.eps_XSimGCL)
 
     def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_cl_loss, running_reg_loss, num_batches = 0, 0, 0, 0, 0

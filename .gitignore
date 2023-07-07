@@ -134,6 +134,7 @@ data/coat/*.npz
 data/yahoo.new/*.npz
 data/tencent_synthetic/*.npz
 data/kuairec2/*.npz
+data/old_data.py
 
 
 logs/

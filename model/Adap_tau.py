@@ -12,8 +12,8 @@ from scipy.special import lambertw
 from torch_scatter import scatter
 
 class Adap_tau_RS(AbstractRS):
-    def __init__(self, args) -> None:
-        super().__init__(args)
+    def __init__(self, args, special_args) -> None:
+        super().__init__(args, special_args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
         self.cnt_lr = args.cnt_lr
 
@@ -27,9 +27,6 @@ class Adap_tau_RS(AbstractRS):
         judgeid_torch = (nu > nu_thresh)
         [self.useid_torch, ] = torch.where(judgeid_torch > 0)
         [self.yid_torch ,] = torch.where(judgeid_torch[self.pos[:,0]]>0)
-
-    def modify_saveID(self):
-        self.saveID += "_tau=" + str(self.model.tau) + 'warm_up=' + str(self.args.cnt_lr)
 
     def train_one_epoch(self, epoch):
         
@@ -105,7 +102,7 @@ class Adap_tau_RS(AbstractRS):
                         w_0, np.mean(tau_mins), np.mean(tau_maxs))
 
         #@ 表现写入txt文件
-        with open(self.base_path + 'stats_{}.txt'.format(self.args.saveID),'a') as f:
+        with open(self.base_path + 'stats.txt','a') as f:
             f.write(perf_str+"\n")
 
         return [running_loss/num_batches, running_mf_loss/num_batches, running_reg_loss/num_batches]

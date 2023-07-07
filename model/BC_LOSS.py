@@ -14,13 +14,10 @@ from tqdm import tqdm
 
 
 class BC_LOSS_RS(AbstractRS):
-    def __init__(self, args) -> None:
-        super().__init__(args)
+    def __init__(self, args, special_args) -> None:
+        super().__init__(args, special_args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
         self.freeze_epoch = args.freeze_epoch
-
-    def modify_saveID(self):
-        self.saveID += "_tau1=" + str(self.model.tau1) + "_tau2=" + str(self.model.tau2) + "_w=" + str(self.model.w_lambda)
 
     def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0

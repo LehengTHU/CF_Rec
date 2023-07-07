@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 
 class AdvInfoNCE_RS(AbstractRS):
-    def __init__(self, args) -> None:
-        super().__init__(args)
+    def __init__(self, args, special_args) -> None:
+        super().__init__(args, special_args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
         self.adv_interval = args.adv_interval
         self.adv_epochs = args.adv_epochs
@@ -28,11 +28,6 @@ class AdvInfoNCE_RS(AbstractRS):
     def set_optimizer(self):
         self.optimizer = torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == True], lr=self.lr)
         self.adv_optimizer = torch.optim.Adam([param for param in self.model.parameters() if param.requires_grad == False], lr=self.adv_lr)
-
-    def modify_saveID(self):
-        self.saveID += "_tau" + str(self.model.tau) + '_i_' + str(self.args.adv_interval) + '_ae_' + str(self.args.adv_epochs) + \
-            '_al_' + str(self.args.adv_lr) + '_w_' + str(self.args.warm_up_epochs) + '_eta_' + str(self.args.eta_epochs) + \
-                '_patience_' + str(self.args.patience) + '_k_neg_' + str(self.args.k_neg)
 
     def train_one_epoch(self, epoch):
         # adversarial train the the weights of negative items
@@ -155,7 +150,7 @@ class AdvInfoNCE_RS(AbstractRS):
             self.eta_per_epoch['mean'].append(np.mean([np.mean(v) for v in eta_u.values()]))
         print(np.mean([np.mean(v) for v in eta_u.values()]))
 
-        with open(self.base_path + 'stats_{}.txt'.format(self.args.saveID), 'a') as f:
+        with open(self.base_path + 'stats.txt', 'a') as f:
             f.write("mean_eta" + "\t" + str(self.eta_per_epoch['mean']) + "\n")
 
 class AdvInfoNCE(AbstractModel):

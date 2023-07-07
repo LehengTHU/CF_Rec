@@ -156,7 +156,7 @@ def evaluation(args, data, model, epoch, base_path, evaluator, name="valid"):
 
     perf_str = name+':{}'.format(n_ret)
     print(perf_str)
-    with open(base_path + 'stats_{}.txt'.format(args.saveID), 'a') as f:
+    with open(base_path + 'stats.txt', 'a') as f:
         f.write(perf_str + "\n")
     # Check if need to early stop (on validation)
     is_best=False
@@ -190,7 +190,7 @@ def Item_pop(args, data, model):
 
         print(print_str)
 
-        with open('stats_{}.txt'.format(args.saveID), 'a') as f:
+        with open('stats.txt', 'a') as f:
             f.write(print_str + "\n")
 
 
@@ -525,7 +525,7 @@ def visualize_and_save_log(file_dir, dataset_name, show=False):
         ax1.legend(loc='upper left')
         ax2.legend(loc='upper right')
 
-        base_path = file_dir[:-10]
+        base_path = file_dir[:-9]
         save_path = base_path + "/train_log.png"
         plt.savefig(save_path)
         if(show):

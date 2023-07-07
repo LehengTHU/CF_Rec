@@ -4,20 +4,26 @@ import torch.nn as nn
 from data.data import Data
 from evaluator import ProxyEvaluator
 from model.base.utils import *
+import datetime
 
 # define the abstract class for recommender system
 class AbstractRS(nn.Module):
-    def __init__(self, args) -> None:
+    def __init__(self, args, special_args) -> None:
         super(AbstractRS, self).__init__()
 
         # basic information
         self.args = args
+        self.special_args = special_args
         self.device = torch.device(args.cuda)
         self.test_only = args.test_only
         self.dataset = args.dataset
+        self.Ks = args.Ks
+        self.patience = args.patience
+        self.modeltype = args.modeltype
         self.inbatch = self.args.infonce == 1 and self.args.neg_sample == -1
     
         # basic hyperparameters
+        self.n_layers = args.n_layers
         self.lr = args.lr
         self.batch_size = args.batch_size
         self.max_epoch = args.epoch
@@ -25,8 +31,8 @@ class AbstractRS(nn.Module):
 
         # load the data
         self.dataset_name = args.dataset
-        self.data = Data(args)
-        self.data.load_data() # load data from the path
+        self.data = Data(args) # load data from the path
+        self.data.load_data()
         self.n_users = self.data.n_users
         self.n_items = self.data.n_items
         self.train_user_list = self.data.train_user_list
@@ -38,24 +44,13 @@ class AbstractRS(nn.Module):
         self.item_pop_max = self.data.item_pop_max 
 
         # load the model
-        required_model = args.modeltype + '_batch' if self.inbatch else args.modeltype
-        exec('from model.'+ args.modeltype + ' import ' + required_model) # import the model first
-        self.model = eval(required_model + '(args, self.data)') # initialize the model with the graph
+        self.running_model = args.modeltype + '_batch' if self.inbatch else args.modeltype
+        exec('from model.'+ args.modeltype + ' import ' + self.running_model) # import the model first
+        self.model = eval(self.running_model + '(args, self.data)') # initialize the model with the graph
         self.model.cuda(self.device)
 
-        # loading and saving
-        self.saveID = args.saveID + str(args.dsc) + "_Ks=" + str(args.Ks) + 'patience=' + str(args.patience)\
-            + "_n_layers=" + str(args.n_layers) + "batch_size=" + str(args.batch_size)\
-                + "neg_sample=" + str(args.neg_sample) + "lr=" + str(args.lr) 
-        
-        self.modify_saveID()
-
-        if args.n_layers > 0 and args.modeltype != "LGN":
-            self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset, required_model, self.saveID)
-        else:
-            self.base_path = './weights/{}/{}/{}'.format(self.dataset, required_model, self.saveID)
-        self.checkpoint_buffer=[]
-        ensureDir(self.base_path)
+        # preparing for saving
+        self.preperation_for_saving(args, special_args)
         
         # evaluation
         self.not_candidate_dict = self.data.get_not_candidate() # load the not candidate dict
@@ -66,7 +61,7 @@ class AbstractRS(nn.Module):
 
         # write args
         perf_str = str(self.args)
-        with open(self.base_path + 'stats_{}.txt'.format(self.args.saveID),'a') as f:
+        with open(self.base_path + 'stats.txt','a') as f:
             f.write(perf_str+"\n")
 
         # train the model if not test only
@@ -82,7 +77,7 @@ class AbstractRS(nn.Module):
         # evaluate the best model
         self.model.eval()
         print_str = "The best epoch is % d" % self.data.best_valid_epoch
-        with open(self.base_path +'stats_{}.txt'.format(self.args.saveID), 'a') as f:
+        with open(self.base_path +'stats.txt', 'a') as f:
             f.write(print_str + "\n")
         for i,evaluator in enumerate(self.evaluators[:]):
             evaluation(self.args, self.data, self.model, self.data.best_valid_epoch, self.base_path, evaluator, self.eval_names[i])
@@ -104,12 +99,36 @@ class AbstractRS(nn.Module):
             if (epoch + 1) % self.verbose == 0: # evaluate the model
                 self.eval_and_check_early_stop(epoch)
 
-        visualize_and_save_log(self.base_path +'stats_{}.txt'.format(self.args.saveID), self.dataset_name)
+        visualize_and_save_log(self.base_path +'stats.txt', self.dataset_name)
 
     #! must be implemented by the subclass
     def train_one_epoch(self, epoch):
         raise NotImplementedError
     
+    def preperation_for_saving(self, args, special_args):
+        formatted_today=datetime.date.today().strftime('%m%d') + '_'
+
+        tn = '1' if args.train_norm else '0'
+        pn = '1' if args.pred_norm else '0'
+        train_pred_mode = 't' + tn + 'p' + pn
+
+        self.saveID = formatted_today + args.saveID + train_pred_mode + "_Ks=" + str(args.Ks) + '_patience=' + str(args.patience)\
+            + "_n_layers=" + str(args.n_layers) + "_batch_size=" + str(args.batch_size)\
+                + "_neg_sample=" + str(args.neg_sample) + "_lr=" + str(args.lr) 
+        
+        for arg in special_args:
+            print(arg, getattr(args, arg))
+            self.saveID += "_" + arg + "=" + str(getattr(args, arg))
+        
+        self.modify_saveID()
+
+        if self.n_layers > 0 and self.modeltype != "LGN":
+            self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset, self.running_model, self.saveID)
+        else:
+            self.base_path = './weights/{}/{}/{}'.format(self.dataset, self.running_model, self.saveID)
+        self.checkpoint_buffer=[]
+        ensureDir(self.base_path)
+
     def modify_saveID(self):
         pass
 
@@ -120,7 +139,7 @@ class AbstractRS(nn.Module):
         loss_str = ', '.join(['%.5f']*len(losses)) % tuple(losses)
         perf_str = prefix + 'Epoch %d [%.1fs]: train==[' % (
                 epoch, t_one_epoch) + loss_str + ']'
-        with open(self.base_path + 'stats_{}.txt'.format(self.args.saveID),'a') as f:
+        with open(self.base_path + 'stats.txt','a') as f:
                 f.write(perf_str+"\n")
     
     # define the evaluation process

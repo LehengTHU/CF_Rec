@@ -12,12 +12,9 @@ from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
 class SimpleX_RS(AbstractRS):
-    def __init__(self, args) -> None:
-        super().__init__(args)
+    def __init__(self, args, special_args) -> None:
+        super().__init__(args, special_args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
-
-    def modify_saveID(self):
-        self.saveID += "_tau=" + str(self.model.tau) + "w=" + str(self.model.w_neg) + "margin=" + str(self.args.neg_margin)
 
     def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0

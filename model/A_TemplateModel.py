@@ -17,8 +17,8 @@ Listed are possible functions that can be implemented in the template model.
 '''
 
 class template_RS(AbstractRS):
-    def __init__(self, args) -> None:
-        super().__init__(args)
+    def __init__(self, args, special_args) -> None:
+        super().__init__(args, special_args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
 
     def modify_saveID(self):

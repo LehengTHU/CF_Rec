@@ -25,7 +25,7 @@ from model.base.utils import *
 
 # load model
 if __name__ == '__main__':
-    args = parse_args()
+    args, special_args = parse_args()
     seed_torch(args.seed) # set random seed
 
     try:
@@ -34,7 +34,7 @@ if __name__ == '__main__':
         print('Model %s not implemented!' % (args.modeltype))
         exit(1)
         
-    RS = eval(args.modeltype + '_RS(args)')
+    RS = eval(args.modeltype + '_RS(args, special_args)')
 
     # activate the recommender system
     RS.execute() # train and test

@@ -9,8 +9,8 @@ from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
 class LGN_RS(AbstractRS):
-    def __init__(self, args) -> None:
-        super().__init__(args)
+    def __init__(self, args, special_args) -> None:
+        super().__init__(args, special_args)
 
     def train_one_epoch(self, epoch):
         running_loss, running_mf_loss, running_reg_loss, num_batches = 0, 0, 0, 0

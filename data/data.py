@@ -85,7 +85,7 @@ class Data:
             self.test_id_file = self.path + 'test_id.txt'
         self.batch_size = args.batch_size
         self.neg_sample = args.neg_sample
-        self.sam=args.sam
+        # self.sam=args.sam
         self.IPStype = args.IPStype
         self.device = torch.device(args.cuda)
         self.modeltype = args.modeltype
@@ -215,16 +215,14 @@ class Data:
         sorted_pop_item.sort()
         self.n_user_pop = len(sorted_pop_user)
         self.n_item_pop = len(sorted_pop_item)
-        # print("n_user_pop", self.n_user_pop)
-        # print("n_item_pop", self.n_item_pop)
-        # print(pop_item.items())
+
         user_idx = {}
         item_idx = {}
         for i, item in enumerate(sorted_pop_user):
             user_idx[item] = i
         for i, item in enumerate(sorted_pop_item):
             item_idx[item] = i
-        # print(self.n_users, self.n_items, self.n_user_pop, self.n_item_pop)
+
         self.user_pop_idx = np.zeros(self.n_users, dtype=int)
         self.item_pop_idx = np.zeros(self.n_items, dtype=int)
         # 把原来稀疏的popularity转化为dense的popularity
@@ -233,8 +231,6 @@ class Data:
         for key, value in pop_item.items():
             # print(key, value)
             self.item_pop_idx[key] = item_idx[value]
-
-        #self.item_pop_idx = torch.tensor(self.item_pop_idx).cuda(self.device)
 
         user_pop_max = max(self.user_pop_idx)
         item_pop_max = max(self.item_pop_idx)
@@ -246,32 +242,32 @@ class Data:
         self.weight_dict={i:self.weights[i] for i in range(len(self.weights))}
         self.sorted_weight=sorted(self.weight_dict.items(),key=lambda x: x[1])
 
-        self.sample_pos_small={}
-        self.sample_pos_big={}
-        lo=0
-        hi=1
-        while hi<len(self.weights):
-            if self.sorted_weight[hi][1]>self.sorted_weight[lo][1]:
+        # self.sample_pos_small={}
+        # self.sample_pos_big={}
+        # lo=0
+        # hi=1
+        # while hi<len(self.weights):
+        #     if self.sorted_weight[hi][1]>self.sorted_weight[lo][1]:
 
-                for i in range(lo,hi):
-                    self.sample_pos_small[self.sorted_weight[i][0]]=hi
-                lo=hi
-            hi+=1     
-        for i in range(lo,hi):
-            self.sample_pos_small[self.sorted_weight[i][0]]=hi
+        #         for i in range(lo,hi):
+        #             self.sample_pos_small[self.sorted_weight[i][0]]=hi
+        #         lo=hi
+        #     hi+=1     
+        # for i in range(lo,hi):
+        #     self.sample_pos_small[self.sorted_weight[i][0]]=hi
 
-        lo=len(self.weights)-2
-        hi=len(self.weights)-1
-        while lo>=0:
-            if self.sorted_weight[lo][1]<self.sorted_weight[hi][1]:
+        # lo=len(self.weights)-2
+        # hi=len(self.weights)-1
+        # while lo>=0:
+        #     if self.sorted_weight[lo][1]<self.sorted_weight[hi][1]:
 
-                for i in range(hi,lo,-1):
-                    self.sample_pos_big[self.sorted_weight[i][0]]=lo
-                hi=lo
-            lo-=1
+        #         for i in range(hi,lo,-1):
+        #             self.sample_pos_big[self.sorted_weight[i][0]]=lo
+        #         hi=lo
+        #     lo-=1
         
-        for i in range(hi,lo,-1):
-            self.sample_pos_big[self.sorted_weight[i][0]]=lo
+        # for i in range(hi,lo,-1):
+        #     self.sample_pos_big[self.sorted_weight[i][0]]=lo
 
         self.sample_items = np.array(self.items, dtype=int)
 
@@ -282,10 +278,6 @@ class Data:
                                               shape=(self.n_users, self.n_items)).toarray()
             self.train_iu_matrix = np.copy( self.train_ui_matrix.T )
 
-        #if self.modeltype == 'CausE':
-        #    self.train_data = TrainDataset_cause(self.modeltype, self.users, self.train_user_list, self.n_observations, \
-        #                                        self.n_interactions, self.pop_item, self.n_items, self.infonce, self.neg_sample, self.items, self.sample_items)
-        #else:
         self.train_data = TrainDataset(self.modeltype, self.users, self.train_user_list, self.user_pop_idx, self.item_pop_idx, \
                                         self.neg_sample, self.n_observations, self.n_items, self.sample_items, self.weights, self.infonce, self.items)
 
@@ -336,9 +328,6 @@ class Data:
                         sp.save_npz(self.path + '/ui_mat.npz', self.ui_mat)
                         print("successfully saved ui_mat...")
                     
-                # dist_mat=np.load_npy(self.path+'/dist_mat.npy')
-                # dist_mat=dist_mat[:self.n_users, self.n_users:]
-                # self.dist_mat=np.exp(-(dist_mat-1)/2)+1
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
             #@ 如果没有预处理的邻接矩阵，就生成一个

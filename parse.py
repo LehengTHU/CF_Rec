@@ -53,134 +53,125 @@ def parse_args():
                         help='max checkpoints to keep')
     parser.add_argument('--infonce', type=int, default=1,
                         help='whether to use infonce loss or not')
+    parser.add_argument('--neg_sample',type=int,default=128)
     parser.add_argument('--num_workers', type=int, default=8,
                         help='number of workers in data loader')
-    parser.add_argument('--dsc', type=str, default='',
-                        help='describe the code version')
     parser.add_argument("--train_norm", action="store_true",
                         help="train_norm")
     parser.add_argument("--pred_norm", action="store_true",
                         help="pred_norm")
 
-    
+    args, _ = parser.parse_known_args()
+
     # INFONCE
-    parser.add_argument('--tau', type=float, default=0.1,
+    if(args.modeltype == 'INFONCE'):
+        parser.add_argument('--tau', type=float, default=0.1,
                         help='temperature parameter')
 
-    # MACR
-    parser.add_argument('--alpha', type=float, default=1e-3,
-                        help='alpha')
-    parser.add_argument('--beta', type=float, default=1e-3,
-                        help='beta')
-    parser.add_argument('--c', type=float, default=30.0,
-                        help='Constant c.')
-    #CausE
-    parser.add_argument('--cf_pen', type=float, default=0.05,
-                        help='Imbalance loss.')
-    
-    #SAM-REG
-
-    parser.add_argument('--rweight', type=float, default=0.05)
-    parser.add_argument('--sam',type=bool,default=True)
-    #parser.add_argument('--pop_test',type=bool,default=False)
-
     #SimpleX
-
-    parser.add_argument('--w_neg', type=float, default=1)
-    parser.add_argument('--neg_margin',type=float, default=0.4)
+    if(args.modeltype == 'SimpleX'):
+        parser.add_argument('--w_neg', type=float, default=1)
+        parser.add_argument('--neg_margin',type=float, default=0.4)
     
     #BC_LOSS
-    parser.add_argument('--tau1', type=float, default=0.07,
-                        help='temperature parameter for L1')
-    parser.add_argument('--tau2', type=float, default=0.1,
-                        help='temperature parameter for L2')
-    parser.add_argument('--w_lambda', type=float, default=0.5,
-                        help='weight for combining l1 and l2.')
-    parser.add_argument('--freeze_epoch',type=int,default=5)
-
-    parser.add_argument('--neg_sample',type=int,default=128)
+    if(args.modeltype == 'BC_LOSS'):
+        parser.add_argument('--tau1', type=float, default=0.07,
+                            help='temperature parameter for L1')
+        parser.add_argument('--tau2', type=float, default=0.1,
+                            help='temperature parameter for L2')
+        parser.add_argument('--w_lambda', type=float, default=0.5,
+                            help='weight for combining l1 and l2.')
+        parser.add_argument('--freeze_epoch',type=int,default=5)
 
     #AdvInfoNCE
-    parser.add_argument('--adv_interval',type=int,default=5,
-                        help='the interval of adversarial training')
-    parser.add_argument('--adv_epochs',type=int,default=1,
-                        help='the epoch of adversarial training')
-    parser.add_argument('--warm_up_epochs', type=int, default=0,
-                        help='warm up epochs, in this stage, adv training is not used')
-    parser.add_argument('--adv_lr', type=float, default=5e-5,
-                        help='Learning rate for adversarial training.')
-    parser.add_argument('--k_neg', type=float, default=64,
-                        help='k_neg for negative sampling')
-    parser.add_argument('--eta_epochs', type=int, default=7,
-                        help='epochs for eta, control the disturbance of adv training')
-    parser.add_argument('--model_version', type=str, default='embed',
-                        help='model type, mlp or embed')
-    parser.add_argument('--w_embed_size',type=int,default=64,
-                        help='dimension of weight embedding')
-
+    if(args.modeltype == 'AdvInfoNCE'):
+        parser.add_argument('--tau', type=float, default=0.1,
+                        help='temperature parameter')
+        parser.add_argument('--adv_interval',type=int,default=5,
+                            help='the interval of adversarial training')
+        parser.add_argument('--adv_epochs',type=int,default=1,
+                            help='the epoch of adversarial training')
+        parser.add_argument('--warm_up_epochs', type=int, default=0,
+                            help='warm up epochs, in this stage, adv training is not used')
+        parser.add_argument('--adv_lr', type=float, default=5e-5,
+                            help='Learning rate for adversarial training.')
+        parser.add_argument('--k_neg', type=float, default=64,
+                            help='k_neg for negative sampling')
+        parser.add_argument('--eta_epochs', type=int, default=7,
+                            help='epochs for eta, control the disturbance of adv training')
+        parser.add_argument('--model_version', type=str, default='embed',
+                            help='model type, mlp or embed')
+        parser.add_argument('--w_embed_size',type=int,default=64,
+                            help='dimension of weight embedding')
 
     # Contrastive Learning
-    parser.add_argument('--lambda_cl', type=float, default=0.2,
-                        help='Rate of contrastive loss')
-    parser.add_argument('--temp_cl', type=float, default=0.15,
-                        help='Temperature of contrastive loss')
-    
     # SGL
-    parser.add_argument('--droprate', type=float, default=0.1,
+    if(args.modeltype == 'SGL'):
+        parser.add_argument('--lambda_cl', type=float, default=0.2,
+                            help='Rate of contrastive loss')
+        parser.add_argument('--temp_cl', type=float, default=0.15,
+                            help='Temperature of contrastive loss')
+        parser.add_argument('--droprate', type=float, default=0.1,
                         help='drop out rate for SGL')
 
     # NCL
-    parser.add_argument('--proto_reg', type=float, default=1e-7,
-                        help='regularization for prototype')
-    parser.add_argument('--ncl_alpha', type=float, default=1,
-                        help='alpha for ncl')
-    parser.add_argument('--num_clusters', type=int, default=2000,
-                        help='number of clusters')
-    parser.add_argument('--ncl_start_epoch', type=int, default=20,
-                        help='start epoch for ncl')
-    
-    
+    if(args.modeltype == 'NCL'):
+        parser.add_argument('--lambda_cl', type=float, default=0.2,
+                            help='Rate of contrastive loss')
+        parser.add_argument('--temp_cl', type=float, default=0.15,
+                            help='Temperature of contrastive loss')
+        parser.add_argument('--proto_reg', type=float, default=1e-7,
+                            help='regularization for prototype')
+        parser.add_argument('--ncl_alpha', type=float, default=1,
+                            help='alpha for ncl')
+        parser.add_argument('--num_clusters', type=int, default=2000,
+                            help='number of clusters')
+        parser.add_argument('--ncl_start_epoch', type=int, default=20,
+                            help='start epoch for ncl')
 
     # XSimGCL
-    parser.add_argument('--eps_XSimGCL', type=float, default=0.2,
-                        help='Noise rate')
-    parser.add_argument('--layer_cl',type=int,default=1,
-                        help='Which layer to pick the contrastive view')
-
-    # PID
-    parser.add_argument('--alpha_pid', type=float, default=0.8,
-                        help='alpha for pid')
+    if(args.modeltype == 'XSimGCL'):
+        parser.add_argument('--lambda_cl', type=float, default=0.2,
+                                help='Rate of contrastive loss')
+        parser.add_argument('--temp_cl', type=float, default=0.15,
+                                help='Temperature of contrastive loss')
+        parser.add_argument('--eps_XSimGCL', type=float, default=0.2,
+                            help='Noise rate')
+        parser.add_argument('--layer_cl',type=int,default=1,
+                            help='Which layer to pick the contrastive view')
     
-    # NBC Loss
-    parser.add_argument('--k_score', type=float, default=8,
-                        help='Temperature of contrastive loss')
-
-    # p_distribution
-    parser.add_argument('--p_path', type=str, default='',
-                        help='path of p distribution')
 
     # Adap-tau
-    parser.add_argument('--cnt_lr',type=int,default=100,
-                        help='warm up for adap tau')
-    parser.add_argument('--adap_tau_beta', type=float, default=1.0,
-                        help='beta')
+    if(args.modeltype == 'Adap-tau'):
+        parser.add_argument('--tau', type=float, default=0.1,
+                        help='temperature parameter')
+        parser.add_argument('--cnt_lr',type=int,default=100,
+                            help='warm up for adap tau')
+        parser.add_argument('--adap_tau_beta', type=float, default=1.0,
+                            help='beta')
     
     # InvCF
-    parser.add_argument('--lambda1', type=float, default=1e-5,
-                        help='weight for popularity embedding loss')
-    parser.add_argument('--lambda2', type=float, default=0,
-                        help='weight for dicor loss')
-    parser.add_argument('--lambda3', type=float, default=1e-4,
-                        help='weight for concat loss')
-    parser.add_argument('--n_factors', type=float, default=4,
-                        help='divided by embeded size')
-    parser.add_argument('--distype', type=str, default='dcor',
-                        help='type of discrepancy function used, [l1,l2,dcor,mmd]')
-    parser.add_argument('--need_distance', type=int, default=1,
-                        help='whether include calculation of distance')
-    parser.add_argument('--kernel', type=str, default='rbf',
-                        help='type of kernel in mmd loss ["multiscale","rbf"]')
+    if(args.modeltype == 'InvCF'):
+        parser.add_argument('--tau', type=float, default=0.1,
+                            help='temperature parameter')
+        parser.add_argument('--lambda1', type=float, default=1e-5,
+                            help='weight for popularity embedding loss')
+        parser.add_argument('--lambda2', type=float, default=0,
+                            help='weight for dicor loss')
+        parser.add_argument('--lambda3', type=float, default=1e-4,
+                            help='weight for concat loss')
+        parser.add_argument('--n_factors', type=float, default=4,
+                            help='divided by embeded size')
+        parser.add_argument('--distype', type=str, default='dcor',
+                            help='type of discrepancy function used, [l1,l2,dcor,mmd]')
+        parser.add_argument('--need_distance', type=int, default=1,
+                            help='whether include calculation of distance')
+        parser.add_argument('--kernel', type=str, default='rbf',
+                            help='type of kernel in mmd loss ["multiscale","rbf"]')
+        
+    args_full, _ = parser.parse_known_args()
+    special_args = list(set(vars(args_full).keys()) - set(vars(args).keys()))
     
-    return parser.parse_args()
+    return args_full, special_args
 
 
