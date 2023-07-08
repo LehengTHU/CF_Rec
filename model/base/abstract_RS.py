@@ -20,6 +20,7 @@ class AbstractRS(nn.Module):
         self.Ks = args.Ks
         self.patience = args.patience
         self.modeltype = args.modeltype
+        self.neg_sample = args.neg_sample
         self.inbatch = self.args.infonce == 1 and self.args.neg_sample == -1
     
         # basic hyperparameters
@@ -58,7 +59,7 @@ class AbstractRS(nn.Module):
         # preparing for saving
         self.preperation_for_saving(args, special_args)
         
-        # evaluation
+        # preparing for evaluation
         self.not_candidate_dict = self.data.get_not_candidate() # load the not candidate dict
         self.evaluators, self.eval_names = self.get_evaluators(self.data, self.not_candidate_dict) # load the evaluators
 
@@ -70,23 +71,26 @@ class AbstractRS(nn.Module):
         with open(self.base_path + 'stats.txt','a') as f:
             f.write(perf_str+"\n")
 
+        self.model, self.start_epoch = self.restore_checkpoint(self.model, self.base_path, self.device) # restore the checkpoint
+
         # train the model if not test only
         if not self.test_only:
             print("start training") 
-            # restore the checkpoint
-            self.model, self.start_epoch = self.restore_checkpoint(self.model, self.base_path, self.device)
             self.train()
 
         # test the model
         print("start testing")
-        self.model = self.restore_best_checkpoint(self.data.best_valid_epoch, self.model, self.base_path, self.device)
-        # evaluate the best model
-        self.model.eval()
+        self.model.eval() # evaluate the best model
         print_str = "The best epoch is % d" % self.data.best_valid_epoch
         with open(self.base_path +'stats.txt', 'a') as f:
             f.write(print_str + "\n")
+
+        n_rets = {}
         for i,evaluator in enumerate(self.evaluators[:]):
-            evaluation(self.args, self.data, self.model, self.data.best_valid_epoch, self.base_path, evaluator, self.eval_names[i])
+            _, __, n_ret = evaluation(self.args, self.data, self.model, self.data.best_valid_epoch, self.base_path, evaluator, self.eval_names[i])
+            n_rets[self.eval_names[i]] = n_ret
+
+        self.document_hyper_params_results(self.base_path, n_rets)
 
     # define the training process
     def train(self) -> None:
@@ -118,7 +122,7 @@ class AbstractRS(nn.Module):
         pn = '1' if args.pred_norm else '0'
         train_pred_mode = 't' + tn + 'p' + pn
 
-        self.saveID = formatted_today + args.saveID + train_pred_mode + "_Ks=" + str(args.Ks) + '_patience=' + str(args.patience)\
+        self.saveID = formatted_today + args.saveID + '_' + train_pred_mode + "_Ks=" + str(args.Ks) + '_patience=' + str(args.patience)\
             + "_n_layers=" + str(args.n_layers) + "_batch_size=" + str(args.batch_size)\
                 + "_neg_sample=" + str(args.neg_sample) + "_lr=" + str(args.lr) 
         
@@ -148,12 +152,37 @@ class AbstractRS(nn.Module):
         with open(self.base_path + 'stats.txt','a') as f:
                 f.write(perf_str+"\n")
     
+    def document_hyper_params_results(self, base_path, n_rets):
+        overall_path = '/'.join(base_path.split('/')[:-1]) + '/'
+        hyper_params_results_path = overall_path + 'hyper_params_results.xlsx'
+
+        results = {'notation': self.args.saveID, 'best_epoch': max(self.data.best_valid_epoch, self.start_epoch), 'max_epoch': self.max_epoch, 'Ks': self.Ks, 'n_layers': self.n_layers, 'batch_size': self.batch_size, 'neg_sample': self.neg_sample, 'lr': self.lr}
+        for special_arg in self.special_args:
+            results[special_arg] = getattr(self.args, special_arg)
+
+        for k, v in n_rets.items():
+            if('test_id' not in k):
+                for metric in ['ndcg', 'recall', 'hit_ratio']:
+                    results[k + '_' + metric] = v[metric]
+        frame_columns = list(results.keys())
+        # load former xlsx
+        if os.path.exists(hyper_params_results_path):
+            hyper_params_results = pd.read_excel(hyper_params_results_path)
+        else:
+            # 用results创建一个新的dataframe
+            hyper_params_results = pd.DataFrame(columns=frame_columns)
+
+        hyper_params_results = hyper_params_results.append(results, ignore_index=True)
+        hyper_params_results.to_excel(hyper_params_results_path, index=False)
+
+
+    
     # define the evaluation process
     def eval_and_check_early_stop(self, epoch):
         self.model.eval()
 
         for i,evaluator in enumerate(self.evaluators):
-            is_best, temp_flag = evaluation(self.args, self.data, self.model, epoch, self.base_path, evaluator, self.eval_names[i])
+            is_best, temp_flag, n_ret = evaluation(self.args, self.data, self.model, epoch, self.base_path, evaluator, self.eval_names[i])
             
             if is_best:
                 checkpoint_buffer=save_checkpoint(self.model, epoch, self.base_path, self.checkpoint_buffer, self.args.max2keep)

@@ -129,8 +129,6 @@ class UniEvaluator(CPPEvaluator):
         test_users = DataIterator(test_users, batch_size=self.batch_size, shuffle=False, drop_last=False)
         batch_result = []
         #print(self.pop_mask)
-        if(model.name == "BISER"):
-            model.cal_ratings()
         for batch_users in test_users:
             if self.user_neg_test is not None:
                 candidate_items = [list(self.user_pos_test[u]) + self.user_neg_test[u] for u in batch_users]

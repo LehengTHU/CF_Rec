@@ -174,7 +174,7 @@ def evaluation(args, data, model, epoch, base_path, evaluator, name="valid"):
                 print(print_str)
                 early_stop=True
 
-    return is_best, early_stop
+    return is_best, early_stop, n_ret
 
 
 def Item_pop(args, data, model):

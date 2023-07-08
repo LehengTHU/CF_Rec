@@ -11,8 +11,8 @@ def parse_args():
                         help='Whether clear the earlier checkpoints.')
     parser.add_argument("--candidate", action="store_true",
                         help="whether using the candidate set")
-    parser.add_argument('--test_only', nargs='?', default=False,
-                        help='we only want test value.')
+    parser.add_argument('--test_only', action="store_true",
+                        help='Whether to test only.')
     parser.add_argument('--data_path', nargs='?', default='./data/',
                         help='Input data path.')
     parser.add_argument('--dataset', nargs='?', default='yahoo.new',
