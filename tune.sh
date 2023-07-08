@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Define the hyperparameters and their respective values
-# tau
-# param_values=(1e-2 5e-2 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1)
-param_values=(1e-2 5e-2 0.1 0.2)
+
+param_values=(0.2 0.22 0.24 0.26 0.28 0.30)
+# param_values=(1e-5 5e-5 1e-4 5e-4 1e-3 5e-3)
 
 length=${#param_values[@]}
 
@@ -13,7 +13,9 @@ run_model() {
     
     # Run your model training command with the given parameters
     # Replace the following command with your actual model training command
-    nohup python main.py --candidate --tau $param --modeltype INFONCE --dataset yahoo.new --n_layers 2 --batch_size 2048 --lr 5e-4 --neg_sample 128 --infonce 1 --saveID eval_lr &> logs/0704_test_CF_Rec.log &
+    nohup python main.py --cuda 0 --n_layers 2 --batch_size 2048 --lr 5e-4 --neg_sample 128 --infonce 1 --train_norm --pred_norm --modeltype InfoNCE --tau $param --dataset yahoo.new --candidate --saveID eval_tau &> logs/0708_eval_yahoo_tau.log &
+    # nohup python main.py --cuda 1 --n_layers 2 --batch_size 2048 --lr $param --neg_sample 1 --infonce 0 --modeltype LightGCN --dataset yahoo.new --candidate --saveID lr &> logs/0708_eval_yahoo_lgn_lr.log &
+
 }
 
 # Launch parallel processes for grid search

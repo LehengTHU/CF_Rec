@@ -10,7 +10,8 @@ import random
 from data.data import Data
 import scipy.sparse as sp
 
-# based on LGN
+# based on LightGCN
+# n_layers = 0: MF
 class AbstractModel(nn.Module):
     def __init__(self, args, data):
         super(AbstractModel, self).__init__()

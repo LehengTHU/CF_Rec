@@ -64,7 +64,7 @@ def parse_args():
     args, _ = parser.parse_known_args()
 
     # INFONCE
-    if(args.modeltype == 'INFONCE'):
+    if(args.modeltype == 'InfoNCE'):
         parser.add_argument('--tau', type=float, default=0.1,
                         help='temperature parameter')
 

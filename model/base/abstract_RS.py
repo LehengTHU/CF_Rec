@@ -77,9 +77,10 @@ class AbstractRS(nn.Module):
         if not self.test_only:
             print("start training") 
             self.train()
-
-        # test the model
-        print("start testing")
+            # test the model
+            print("start testing")
+            self.model = self.restore_best_checkpoint(self.data.best_valid_epoch, self.model, self.base_path, self.device)
+        
         self.model.eval() # evaluate the best model
         print_str = "The best epoch is % d" % self.data.best_valid_epoch
         with open(self.base_path +'stats.txt', 'a') as f:
@@ -116,13 +117,13 @@ class AbstractRS(nn.Module):
         raise NotImplementedError
     
     def preperation_for_saving(self, args, special_args):
-        formatted_today=datetime.date.today().strftime('%m%d') + '_'
+        self.formatted_today=datetime.date.today().strftime('%m%d') + '_'
 
         tn = '1' if args.train_norm else '0'
         pn = '1' if args.pred_norm else '0'
-        train_pred_mode = 't' + tn + 'p' + pn
+        self.train_pred_mode = 't' + tn + 'p' + pn
 
-        self.saveID = formatted_today + args.saveID + '_' + train_pred_mode + "_Ks=" + str(args.Ks) + '_patience=' + str(args.patience)\
+        self.saveID = self.formatted_today + args.saveID + '_' + self.train_pred_mode + "_Ks=" + str(args.Ks) + '_patience=' + str(args.patience)\
             + "_n_layers=" + str(args.n_layers) + "_batch_size=" + str(args.batch_size)\
                 + "_neg_sample=" + str(args.neg_sample) + "_lr=" + str(args.lr) 
         
@@ -132,7 +133,7 @@ class AbstractRS(nn.Module):
         
         self.modify_saveID()
 
-        if self.n_layers > 0 and self.modeltype != "LGN":
+        if self.n_layers > 0 and self.modeltype != "LightGCN":
             self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset_name, self.running_model, self.saveID)
         else:
             self.base_path = './weights/{}/{}/{}'.format(self.dataset_name, self.running_model, self.saveID)
@@ -154,9 +155,9 @@ class AbstractRS(nn.Module):
     
     def document_hyper_params_results(self, base_path, n_rets):
         overall_path = '/'.join(base_path.split('/')[:-1]) + '/'
-        hyper_params_results_path = overall_path + 'hyper_params_results.xlsx'
+        hyper_params_results_path = overall_path + self.dataset_name + '_' + self.modeltype + '_' + self.args.saveID + '_hyper_params_results.csv'
 
-        results = {'notation': self.args.saveID, 'best_epoch': max(self.data.best_valid_epoch, self.start_epoch), 'max_epoch': self.max_epoch, 'Ks': self.Ks, 'n_layers': self.n_layers, 'batch_size': self.batch_size, 'neg_sample': self.neg_sample, 'lr': self.lr}
+        results = {'notation': self.formatted_today, 'train_pred_mode':self.train_pred_mode, 'best_epoch': max(self.data.best_valid_epoch, self.start_epoch), 'max_epoch': self.max_epoch, 'Ks': self.Ks, 'n_layers': self.n_layers, 'batch_size': self.batch_size, 'neg_sample': self.neg_sample, 'lr': self.lr}
         for special_arg in self.special_args:
             results[special_arg] = getattr(self.args, special_arg)
 
@@ -167,13 +168,16 @@ class AbstractRS(nn.Module):
         frame_columns = list(results.keys())
         # load former xlsx
         if os.path.exists(hyper_params_results_path):
-            hyper_params_results = pd.read_excel(hyper_params_results_path)
+            # hyper_params_results = pd.read_excel(hyper_params_results_path)
+            hyper_params_results = pd.read_csv(hyper_params_results_path)
         else:
             # 用results创建一个新的dataframe
             hyper_params_results = pd.DataFrame(columns=frame_columns)
 
         hyper_params_results = hyper_params_results.append(results, ignore_index=True)
-        hyper_params_results.to_excel(hyper_params_results_path, index=False)
+        # to csv
+        hyper_params_results.to_csv(hyper_params_results_path, index=False)
+        # hyper_params_results.to_excel(hyper_params_results_path, index=False)
 
 
     

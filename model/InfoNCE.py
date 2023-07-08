@@ -8,7 +8,7 @@ from model.base.abstract_model import AbstractModel
 from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
-class INFONCE_RS(AbstractRS):
+class InfoNCE_RS(AbstractRS):
     def __init__(self, args, special_args) -> None:
         super().__init__(args, special_args)
         self.neg_sample =  args.neg_sample if args.neg_sample!=-1 else self.batch_size-1
@@ -41,7 +41,7 @@ class INFONCE_RS(AbstractRS):
             num_batches += 1
         return [running_loss/num_batches, running_mf_loss/num_batches, running_reg_loss/num_batches]
 
-class INFONCE(AbstractModel):
+class InfoNCE(AbstractModel):
     def __init__(self, args, data) -> None:
         super().__init__(args, data)
         self.tau = args.tau
@@ -79,7 +79,7 @@ class INFONCE(AbstractModel):
 
         return ssm_loss, reg_loss
 
-class INFONCE_batch(AbstractModel):
+class InfoNCE_batch(AbstractModel):
     def __init__(self, args, data) -> None:
         super().__init__(args, data)
         self.tau = args.tau

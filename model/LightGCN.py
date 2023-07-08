@@ -8,7 +8,7 @@ from model.base.abstract_model import AbstractModel
 from model.base.abstract_RS import AbstractRS
 from tqdm import tqdm
 
-class LGN_RS(AbstractRS):
+class LightGCN_RS(AbstractRS):
     def __init__(self, args, special_args) -> None:
         super().__init__(args, special_args)
 
@@ -42,7 +42,7 @@ class LGN_RS(AbstractRS):
         return [running_loss/num_batches, running_mf_loss/num_batches, running_reg_loss/num_batches]
 
 
-class LGN(AbstractModel):
+class LightGCN(AbstractModel):
     def __init__(self, args, data) -> None:
         super().__init__(args, data)
     

@@ -53,7 +53,7 @@ def helper_load_train(filename):
             user = line[0]
             items = line[1:]
             item_dict.update(items)
-            # LGN
+            # LightGCN
             trainUser.extend([user] * len(items))
             trainItem.extend(items)
             if len(items) == 0:
@@ -328,16 +328,22 @@ class Data:
     
     def get_not_candidate(self):
         if self.candidate:
-            not_candidate_dict = {}
-            with open('data/' + self.dataset + '/not_candidate.txt', 'r') as f:
-                for line in f.readlines():
-                    line = line.strip('\n').split(' ')
-                    if len(line) == 0:
-                        continue
-                    line = [int(i) for i in line]
-                    user = line[0]
-                    items = line[1:]
-                    not_candidate_dict[user] = items
+            if('kuairec' in self.dataset):
+                with open("data/" + self.dataset + '/not_candidate.txt', 'r') as f:
+                    not_candidate = f.readlines()
+                    not_candidate = [int(item.strip()) for item in not_candidate]
+                    not_candidate_dict = {u:not_candidate for u in self.users}
+            else:
+                not_candidate_dict = {}
+                with open('data/' + self.dataset + '/not_candidate.txt', 'r') as f:
+                    for line in f.readlines():
+                        line = line.strip('\n').split(' ')
+                        if len(line) == 0:
+                            continue
+                        line = [int(i) for i in line]
+                        user = line[0]
+                        items = line[1:]
+                        not_candidate_dict[user] = items
 
             return not_candidate_dict
         else:
