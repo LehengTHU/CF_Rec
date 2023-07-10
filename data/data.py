@@ -83,6 +83,9 @@ class Data:
         else:
             self.test_ood_file = self.path + 'test_ood.txt'
             self.test_id_file = self.path + 'test_id.txt'
+        self.candidate = args.candidate
+        if(args.candidate):
+            self.test_neg_file = self.path + 'test_neg.txt'
         self.batch_size = args.batch_size
         self.neg_sample = args.neg_sample
         # self.sam=args.sam
@@ -158,6 +161,8 @@ class Data:
         else:
             self.test_ood_user_list, self.test_ood_item_list = helper_load(self.test_ood_file)
             self.test_id_user_list, self.test_id_item_list = helper_load(self.test_id_file)
+        if(self.candidate):
+            self.test_neg_user_list, self.test_neg_item_list = helper_load(self.test_neg_file)
         self.pop_dict_list = []
 
         if(self.dataset == "tencent_synthetic" or self.dataset == "kuairec_ood"):
@@ -326,28 +331,28 @@ class Data:
 
         return self.Graph
     
-    def get_not_candidate(self):
-        if self.candidate:
-            if('kuairec' in self.dataset):
-                with open("data/" + self.dataset + '/not_candidate.txt', 'r') as f:
-                    not_candidate = f.readlines()
-                    not_candidate = [int(item.strip()) for item in not_candidate]
-                    not_candidate_dict = {u:not_candidate for u in self.users}
-            else:
-                not_candidate_dict = {}
-                with open('data/' + self.dataset + '/not_candidate.txt', 'r') as f:
-                    for line in f.readlines():
-                        line = line.strip('\n').split(' ')
-                        if len(line) == 0:
-                            continue
-                        line = [int(i) for i in line]
-                        user = line[0]
-                        items = line[1:]
-                        not_candidate_dict[user] = items
+    # def get_not_candidate(self):
+    #     if self.candidate:
+    #         if('kuairec' in self.dataset):
+    #             with open("data/" + self.dataset + '/not_candidate.txt', 'r') as f:
+    #                 not_candidate = f.readlines()
+    #                 not_candidate = [int(item.strip()) for item in not_candidate]
+    #                 not_candidate_dict = {u:not_candidate for u in self.users}
+    #         else:
+    #             not_candidate_dict = {}
+    #             with open('data/' + self.dataset + '/not_candidate.txt', 'r') as f:
+    #                 for line in f.readlines():
+    #                     line = line.strip('\n').split(' ')
+    #                     if len(line) == 0:
+    #                         continue
+    #                     line = [int(i) for i in line]
+    #                     user = line[0]
+    #                     items = line[1:]
+    #                     not_candidate_dict[user] = items
 
-            return not_candidate_dict
-        else:
-            return None
+    #         return not_candidate_dict
+    #     else:
+    #         return None
 
 class TrainDataset(torch.utils.data.Dataset):
 

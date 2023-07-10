@@ -87,20 +87,21 @@ def parse_args():
     if(args.modeltype == 'AdvInfoNCE'):
         parser.add_argument('--tau', type=float, default=0.1,
                         help='temperature parameter')
-        parser.add_argument('--adv_interval',type=int,default=5,
-                            help='the interval of adversarial training')
-        parser.add_argument('--adv_epochs',type=int,default=1,
-                            help='the epoch of adversarial training')
-        parser.add_argument('--warm_up_epochs', type=int, default=0,
-                            help='warm up epochs, in this stage, adv training is not used')
-        parser.add_argument('--adv_lr', type=float, default=5e-5,
-                            help='Learning rate for adversarial training.')
-        parser.add_argument('--k_neg', type=float, default=64,
-                            help='k_neg for negative sampling')
         parser.add_argument('--eta_epochs', type=int, default=7,
                             help='epochs for eta, control the disturbance of adv training')
+        parser.add_argument('--adv_lr', type=float, default=5e-5,
+                            help='Learning rate for adversarial training.')
         parser.add_argument('--model_version', type=str, default='embed',
                             help='model type, mlp or embed')
+        
+        parser.add_argument('--adv_interval',type=int,default=5,
+                            help='the interval of adversarial training')
+        parser.add_argument('--warm_up_epochs', type=int, default=0,
+                            help='warm up epochs, in this stage, adv training is not used')
+        parser.add_argument('--k_neg', type=float, default=64,
+                            help='k_neg for negative sampling')
+        parser.add_argument('--adv_epochs',type=int,default=1,
+                            help='the epoch of adversarial training')
         parser.add_argument('--w_embed_size',type=int,default=64,
                             help='dimension of weight embedding')
 
@@ -171,7 +172,8 @@ def parse_args():
         
     args_full, _ = parser.parse_known_args()
     special_args = list(set(vars(args_full).keys()) - set(vars(args).keys()))
-    
+    special_args.sort()
+
     return args_full, special_args
 
 

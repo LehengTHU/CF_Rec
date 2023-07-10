@@ -60,8 +60,8 @@ class AbstractRS(nn.Module):
         self.preperation_for_saving(args, special_args)
         
         # preparing for evaluation
-        self.not_candidate_dict = self.data.get_not_candidate() # load the not candidate dict
-        self.evaluators, self.eval_names = self.get_evaluators(self.data, self.not_candidate_dict) # load the evaluators
+        # self.not_candidate_dict = self.data.get_not_candidate() # load the not candidate dict
+        self.evaluators, self.eval_names = self.get_evaluators(self.data) # load the evaluators
 
     # the whole pipeline of the training process
     def execute(self):
@@ -133,7 +133,9 @@ class AbstractRS(nn.Module):
         
         self.modify_saveID()
 
-        if self.n_layers > 0 and self.modeltype != "LightGCN":
+        if self.modeltype == 'LightGCN' and self.n_layers == 0:
+            self.base_path = './weights/{}/MF/{}'.format(self.dataset_name, self.saveID)
+        elif self.n_layers > 0 and self.modeltype != "LightGCN":
             self.base_path = './weights/{}/{}-LGN/{}'.format(self.dataset_name, self.running_model, self.saveID)
         else:
             self.base_path = './weights/{}/{}/{}'.format(self.dataset_name, self.running_model, self.saveID)
@@ -163,8 +165,8 @@ class AbstractRS(nn.Module):
 
         for k, v in n_rets.items():
             if('test_id' not in k):
-                for metric in ['ndcg', 'recall', 'hit_ratio']:
-                    results[k + '_' + metric] = v[metric]
+                for metric in ['recall', 'ndcg', 'hit_ratio']:
+                    results[k + '_' + metric] = round(v[metric], 4)
         frame_columns = list(results.keys())
         # load former xlsx
         if os.path.exists(hyper_params_results_path):
@@ -176,9 +178,12 @@ class AbstractRS(nn.Module):
 
         hyper_params_results = hyper_params_results.append(results, ignore_index=True)
         # to csv
-        hyper_params_results.to_csv(hyper_params_results_path, index=False)
+        hyper_params_results.to_csv(hyper_params_results_path, index=False, float_format='%.4f')
         # hyper_params_results.to_excel(hyper_params_results_path, index=False)
 
+    def recommend_top_k(self, user_ids):
+        
+        pass
 
     
     # define the evaluation process
@@ -287,7 +292,7 @@ class AbstractRS(nn.Module):
 
         return model
     
-    def get_evaluators(self, data, not_candidate_dict=None, pop_mask=None):
+    def get_evaluators(self, data, pop_mask=None):
         #if not self.args.pop_test:
         K_value = self.args.Ks
         if(self.dataset_name == "tencent_synthetic"):
@@ -300,11 +305,13 @@ class AbstractRS(nn.Module):
                                     dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list_1,data.test_ood_user_list_2]))
                         
         elif  self.args.candidate:
-            eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,not_candidate_dict]))
-            eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list,not_candidate_dict]))
-            eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list,not_candidate_dict]))
+            eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list]))
+            # eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list,not_candidate_dict]))
+            # eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list,not_candidate_dict]))
+            eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value], user_neg_test = data.test_neg_user_list)
+            eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value], user_neg_test = data.test_neg_user_list)
         else: 
-            eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value])  
+            eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list]))  
             eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list]))
             eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list]))
        

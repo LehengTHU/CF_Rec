@@ -131,14 +131,20 @@ class UniEvaluator(CPPEvaluator):
         #print(self.pop_mask)
         for batch_users in test_users:
             if self.user_neg_test is not None:
-                candidate_items = [list(self.user_pos_test[u]) + self.user_neg_test[u] for u in batch_users]
-                test_items = [set(range(len(self.user_pos_test[u]))) for u in batch_users]
+                # candidate_items = [list(self.user_pos_test[u]) + self.user_neg_test[u] if u in self.user_neg_test.keys() else list(self.user_pos_test[u]) for u in batch_users]
+                candidate_items = {u:list(self.user_pos_test[u]) + self.user_neg_test[u] if u in self.user_neg_test.keys() else list(self.user_pos_test[u]) for u in batch_users}
+                test_items = [self.user_pos_test[u] for u in batch_users]
 
-                ranking_score = model.predict(batch_users, candidate_items)  # (B,N)
-                ranking_score = pad_sequences(ranking_score, value=-np.inf, dtype=float_type)
-
+                ranking_score = model.predict(batch_users, None)  # (B,N)
                 if not is_ndarray(ranking_score, float_type):
                     ranking_score = np.array(ranking_score, dtype=float_type)
+
+                all_items = set(range(ranking_score.shape[1]))
+                for idx, user in enumerate(batch_users):
+                    # print(max(set(candidate_items[user])), )
+                    not_user_candidates = list(all_items - set(candidate_items[user]))
+                    ranking_score[idx,not_user_candidates] = -np.inf
+                
             else:
                 test_items = [self.user_pos_test[u] for u in batch_users]
                 ranking_score = model.predict(batch_users, None)  # (B,N)
