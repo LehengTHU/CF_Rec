@@ -3,6 +3,10 @@ import torch
 import torch.nn as nn
 from data.data import Data
 from evaluator import ProxyEvaluator
+from util import DataIterator
+from util.cython.tools import float_type, is_ndarray
+from util import typeassert, argmax_top_k
+from concurrent.futures import ThreadPoolExecutor
 from model.base.utils import *
 import datetime
 
@@ -16,6 +20,7 @@ class AbstractRS(nn.Module):
         self.special_args = special_args
         self.device = torch.device(args.cuda)
         self.test_only = args.test_only
+        self.candidate = args.candidate
 
         self.Ks = args.Ks
         self.patience = args.patience
@@ -91,6 +96,7 @@ class AbstractRS(nn.Module):
             _, __, n_ret = evaluation(self.args, self.data, self.model, self.data.best_valid_epoch, self.base_path, evaluator, self.eval_names[i])
             n_rets[self.eval_names[i]] = n_ret
 
+        self.recommend_top_k()
         self.document_hyper_params_results(self.base_path, n_rets)
 
     # define the training process
@@ -181,9 +187,49 @@ class AbstractRS(nn.Module):
         hyper_params_results.to_csv(hyper_params_results_path, index=False, float_format='%.4f')
         # hyper_params_results.to_excel(hyper_params_results_path, index=False)
 
-    def recommend_top_k(self, user_ids):
-        
-        pass
+    def recommend_top_k(self):
+        test_users = list(self.data.test_ood_user_list.keys())
+        if(self.candidate == False):
+            dump_dict = merge_user_list([self.data.train_user_list,self.data.valid_user_list])
+        recommended_top_k = {}
+        test_users = DataIterator(test_users, batch_size=self.batch_size, shuffle=False, drop_last=False)
+        for batch_users in test_users:
+            if self.data.test_neg_user_list is not None:
+                candidate_items = {u:list(self.data.test_ood_user_list[u]) + self.data.test_neg_user_list[u] if u in self.data.test_neg_user_list.keys() else list(self.data.test_ood_user_list[u]) for u in batch_users}
+
+                ranking_score = self.model.predict(batch_users, None)  # (B,N)
+                if not is_ndarray(ranking_score, float_type):
+                    ranking_score = np.array(ranking_score, dtype=float_type)
+
+                all_items = set(range(ranking_score.shape[1]))
+                for idx, user in enumerate(batch_users):
+                    # print(max(set(candidate_items[user])), )
+                    not_user_candidates = list(all_items - set(candidate_items[user]))
+                    ranking_score[idx,not_user_candidates] = -np.inf
+
+                    recommended_top_k[user] = argmax_top_k(ranking_score[idx], self.Ks)
+                    # print('finish one user')
+            else:
+                ranking_score = self.model.predict(batch_users, None)  # (B,N)
+                if not is_ndarray(ranking_score, float_type):
+                    ranking_score = np.array(ranking_score, dtype=float_type)
+                # set the ranking scores of training items to -inf,
+                # then the training items will be sorted at the end of the ranking list.
+                
+                for idx, user in enumerate(batch_users):
+                    train_items = dump_dict[user]
+                    train_items = [ x for x in train_items if not x in self.data.test_ood_user_list[user] ]
+                    ranking_score[idx][train_items] = -np.inf
+            print('finish one batch', idx)
+
+        recommended_top_k = dict(sorted(recommended_top_k.items(), key=lambda x: x[0]))
+        with open(self.base_path + '/recommend_top_k.txt', 'w') as f:
+            for u, v in recommended_top_k.items():
+                f.write(str(int(u)))
+                for i in v:
+                    f.write(' ' + str(int(i)))
+                f.write('\n')
+
 
     
     # define the evaluation process
