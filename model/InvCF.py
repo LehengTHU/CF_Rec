@@ -26,12 +26,15 @@ class InvCF_RS(AbstractRS):
             batch = [x.cuda(self.device) for x in batch]
             users, pos_items, users_pop, pos_items_pop, pos_weights  = batch[0], batch[1], batch[2], batch[3], batch[4]
 
-            self.model.train()
             if(self.inbatch):
+
+                self.model.train()
                 mf_loss, reg_loss, pop_mf_loss, pop_reg_loss, sub_mf_loss, sub_reg_loss, disc_loss = self.model(users, pos_items, users_pop, pos_items_pop)
             else:
                 neg_items = batch[5]
                 neg_items_pop = batch[6]
+
+                self.model.train()
                 mf_loss, reg_loss, pop_mf_loss, pop_reg_loss, sub_mf_loss, sub_reg_loss, disc_loss = self.model(users, pos_items, neg_items, users_pop, pos_items_pop, neg_items_pop)
             
             if self.args.need_distance == 1:
@@ -275,15 +278,11 @@ class InvCF(AbstractModel):
         negEmb0_p = self.embed_item_pop(neg_items_pop)
 
         all_users, all_items = self.compute()
-        #all_users_p, all_items_p = self.compute_p()
+        all_users_p, all_items_p = self.compute_p()
 
-        #users_pop = all_users_p[users]
-        #pos_items_pop = all_users_p[pos_items]
-        #neg_items_pop = all_users_p[neg_items]
-
-        users_pop = userEmb0_p
-        pos_items_pop = posEmb0_p
-        neg_items_pop = negEmb0_p
+        users_pop = all_users_p[users]
+        pos_items_pop = all_items_p[pos_items]
+        neg_items_pop = all_items_p[neg_items]
 
         users = all_users[users]
         pos_items = all_items[pos_items]
@@ -360,9 +359,8 @@ class InvCF_batch(InvCF):
         all_users_p, all_items_p = self.compute_p()
 
         users_pop = all_users_p[users]
-        pos_items_pop = all_users_p[pos_items]
-        #users_pop = userEmb0_p
-        #pos_items_pop = posEmb0_p
+        pos_items_pop = all_items_p[pos_items]
+        
         
         users = all_users[users]
         pos_items = all_items[pos_items]

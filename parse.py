@@ -15,19 +15,19 @@ def parse_args():
                         help='Whether to test only.')
     parser.add_argument('--data_path', nargs='?', default='./data/',
                         help='Input data path.')
-    parser.add_argument('--dataset', nargs='?', default='yahoo.new',
+    parser.add_argument('--dataset', nargs='?', default='yelp2018.new',
                         help='Choose a dataset')
     parser.add_argument('--embed_size', type=int, default=64,
                         help='Embedding size.')
     parser.add_argument('--batch_size', type=int, default=2048,
                         help='Batch size.')
-    parser.add_argument('--lr', type=float, default=5e-4,
+    parser.add_argument('--lr', type=float, default=1e-3,
                         help='Learning rate.')
     parser.add_argument('--regs', type=float, default=1e-5,
                         help='Regularization.')
     parser.add_argument('--epoch', type=int, default=2000,
                         help='Number of epoch.')
-    parser.add_argument('--Ks', type = int, default= 5,
+    parser.add_argument('--Ks', type = int, default= 20,
                         help='Evaluate on Ks optimal items.')
     parser.add_argument('--log_interval', type=int, default=10,
                         help='log\'s interval epoch while training')
@@ -35,11 +35,11 @@ def parse_args():
                         help='Interval of evaluation.')
     parser.add_argument('--saveID', type=str, default="",
                         help='Specify model save path.')
-    parser.add_argument('--patience', type=int, default=10,
+    parser.add_argument('--patience', type=int, default=20,
                         help='Early stopping point.')
     parser.add_argument('--checkpoint', type=str, default='./',
                         help='Specify model save path.')
-    parser.add_argument('--modeltype', type=str, default= 'BC_LOSS',
+    parser.add_argument('--modeltype', type=str, default= 'UltraGCN',
                         help='Specify model save path.')
     parser.add_argument('--cuda', type=int, default=0,
                         help='Specify which gpu to use.')
@@ -60,6 +60,8 @@ def parse_args():
                         help="train_norm")
     parser.add_argument("--pred_norm", action="store_true",
                         help="pred_norm")
+
+    parser.add_argument('--sam',type=bool,default=True)
 
     args, _ = parser.parse_known_args()
 
@@ -169,6 +171,139 @@ def parse_args():
                             help='whether include calculation of distance')
         parser.add_argument('--kernel', type=str, default='rbf',
                             help='type of kernel in mmd loss ["multiscale","rbf"]')
+        
+    #PopGo 
+    if(args.modeltype == 'PopGo'):
+        parser.add_argument('--tau1', type=float, default=0.07,
+                            help='temperature parameter for L1')
+        parser.add_argument('--tau2', type=float, default=0.1,
+                            help='temperature parameter for L2')
+        parser.add_argument('--w_lambda', type=float, default=0.5,
+                            help='weight for combining l1 and l2.')
+        parser.add_argument('--freeze_epoch',type=int,default=5)
+        parser.add_argument('--decay', type=float, default=1e-5,
+                            help='regularization term coefficient.') 
+        
+    # UltraGCN
+
+    if(args.modeltype == 'UltraGCN') or (args.modeltype == 'UltraGCN_ips') or (args.modeltype == 'UltraGCN_cause') or (args.modeltype == 'UltraGCN_samreg'):
+       
+        parser.add_argument('--ii_neighbor_num', type=int, default=10,
+                            help='ii_neighbor_num.') 
+        
+        #L = -(w1 + w2*\beta)) * log(sigmoid(e_u e_i)) - \sum_{N-} (w3 + w4*\beta) * log(sigmoid(e_u e_i'))
+        
+        parser.add_argument('--w1', type=float, default=1e-8) 
+        parser.add_argument('--w2', type=float, default=1) 
+        parser.add_argument('--w3', type=float, default=1e-8)
+        parser.add_argument('--w4', type=float, default=1)
+
+        parser.add_argument('--negative_weight', type=float, default=2)
+
+        #weight of l2 normalization
+        parser.add_argument('--gamma', type=float, default=1e-4)
+        #weight of L_C
+        parser.add_argument('--lambda_', type=float, default=5e-4)
+
+        #weight of L_I
+        parser.add_argument('--lambda_2', type=float, default=0)
+
+        #CausE
+        parser.add_argument('--cf_pen', type=float, default=0.05,
+                        help='Imbalance loss.')
+        # samreg
+        parser.add_argument('--rweight', type=float, default=0.05)
+
+    if(args.modeltype == 'UltraGCN_pop'):
+       
+        parser.add_argument('--ii_neighbor_num', type=int, default=10,
+                            help='ii_neighbor_num.') 
+        
+        #L = -(w1 + w2*\beta)) * log(sigmoid(e_u e_i)) - \sum_{N-} (w3 + w4*\beta) * log(sigmoid(e_u e_i'))
+        
+        parser.add_argument('--w1', type=float, default=1e-8) 
+        parser.add_argument('--w2', type=float, default=1) 
+        parser.add_argument('--w3', type=float, default=1e-8)
+        parser.add_argument('--w4', type=float, default=1)
+
+        parser.add_argument('--negative_weight', type=float, default=10)
+
+        #weight of l2 normalization
+        parser.add_argument('--gamma', type=float, default=1e-4)
+        #weight of L_I
+        parser.add_argument('--lambda_', type=float, default=5e-4)
+
+        parser.add_argument('--lambda_2', type=float, default=0)
+
+        parser.add_argument('--tau1', type=float, default=0.07,
+                            help='temperature parameter for L1')
+        parser.add_argument('--tau2', type=float, default=0.1,
+                            help='temperature parameter for L2')
+        parser.add_argument('--w_lambda', type=float, default=0.5,
+                            help='weight for combining l1 and l2.')
+        parser.add_argument('--freeze_epoch',type=int,default=5)
+        parser.add_argument('--decay', type=float, default=1e-5,
+                            help='regularization term coefficient.') 
+
+    if(args.modeltype == 'UltraGCN_macr'):
+        parser.add_argument('--ii_neighbor_num', type=int, default=10,
+                            help='ii_neighbor_num.') 
+        
+        #L = -(w1 + w2*\beta)) * log(sigmoid(e_u e_i)) - \sum_{N-} (w3 + w4*\beta) * log(sigmoid(e_u e_i'))
+        
+        parser.add_argument('--w1', type=float, default=1e-8) 
+        parser.add_argument('--w2', type=float, default=1) 
+        parser.add_argument('--w3', type=float, default=1e-8)
+        parser.add_argument('--w4', type=float, default=1)
+
+        parser.add_argument('--negative_weight', type=float, default=1)
+
+        #weight of l2 normalization
+        parser.add_argument('--gamma', type=float, default=1e-4)
+        #weight of L_C
+        parser.add_argument('--lambda_', type=float, default=5e-4)
+
+        #weight of L_I
+        parser.add_argument('--lambda_2', type=float, default=0)
+
+        # MACR
+        parser.add_argument('--alpha', type=float, default=1e-3,
+                            help='alpha')
+        parser.add_argument('--beta', type=float, default=1e-3,
+                            help='beta')
+        parser.add_argument('--c_value', type=float, default=30.0,
+                            help='Constant c.')
+
+
+    if(args.modeltype == 'UltraGCN_dice'):
+        parser.add_argument('--ii_neighbor_num', type=int, default=10,
+                            help='ii_neighbor_num.') 
+        
+        parser.add_argument('--w1', type=float, default=1e-8) 
+        parser.add_argument('--w2', type=float, default=1) 
+        parser.add_argument('--w3', type=float, default=1e-8)
+        parser.add_argument('--w4', type=float, default=1)
+
+        parser.add_argument('--negative_weight', type=float, default=1)
+
+        #weight of l2 normalization
+        parser.add_argument('--gamma', type=float, default=1e-4)
+        #weight of L_C
+        parser.add_argument('--lambda_', type=float, default=5e-4)
+
+        #weight of L_I
+        parser.add_argument('--lambda_2', type=float, default=0)
+
+        #dice
+        parser.add_argument('--int_weight', type=float, default=0.1)
+        parser.add_argument('--pop_weight', type=float, default=0.1)
+        parser.add_argument('--dis_loss', type=str, default='dcor')
+        parser.add_argument('--dis_pen', type=float, default=0.01)
+        parser.add_argument('--dice_weight', type=float, default=0.1)
+        
+
+  
+ 
         
     args_full, _ = parser.parse_known_args()
     special_args = list(set(vars(args_full).keys()) - set(vars(args).keys()))

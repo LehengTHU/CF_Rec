@@ -38,9 +38,11 @@ class AbstractRS(nn.Module):
         # load the data
         self.dataset_name = args.dataset
         try:
-            print('from model.'+ args.modeltype + ' import ' + args.modeltype + '_Data')
+            
             exec('from model.'+ args.modeltype + ' import ' + args.modeltype + '_Data') # load special dataset
+            print('from model.'+ args.modeltype + ' import ' + args.modeltype + '_Data')
             self.data = eval(args.modeltype + '_Data(args)') 
+            
         except:
             print("no special dataset")
             self.data = Data(args) # load data from the path
@@ -96,7 +98,7 @@ class AbstractRS(nn.Module):
             _, __, n_ret = evaluation(self.args, self.data, self.model, self.data.best_valid_epoch, self.base_path, evaluator, self.eval_names[i])
             n_rets[self.eval_names[i]] = n_ret
 
-        self.recommend_top_k()
+        #self.recommend_top_k()
         self.document_hyper_params_results(self.base_path, n_rets)
 
     # define the training process
@@ -129,9 +131,7 @@ class AbstractRS(nn.Module):
         pn = '1' if args.pred_norm else '0'
         self.train_pred_mode = 't' + tn + 'p' + pn
 
-        self.saveID = self.formatted_today + args.saveID + '_' + self.train_pred_mode + "_Ks=" + str(args.Ks) + '_patience=' + str(args.patience)\
-            + "_n_layers=" + str(args.n_layers) + "_batch_size=" + str(args.batch_size)\
-                + "_neg_sample=" + str(args.neg_sample) + "_lr=" + str(args.lr) 
+        self.saveID = self.formatted_today + args.saveID  + "_neg_sample=" + str(args.neg_sample) 
         
         for arg in special_args:
             print(arg, getattr(args, arg))
@@ -339,7 +339,7 @@ class AbstractRS(nn.Module):
         return model
     
     def get_evaluators(self, data, pop_mask=None):
-        #if not self.args.pop_test:
+        
         K_value = self.args.Ks
         if(self.dataset_name == "tencent_synthetic"):
             eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value])
@@ -352,8 +352,6 @@ class AbstractRS(nn.Module):
                         
         elif  self.args.candidate:
             eval_valid = ProxyEvaluator(data,data.train_user_list,data.valid_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list]))
-            # eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_id_user_list,not_candidate_dict]))
-            # eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value],dump_dict=merge_user_list([data.train_user_list,data.valid_user_list,data.test_ood_user_list,not_candidate_dict]))
             eval_test_ood = ProxyEvaluator(data,data.train_user_list,data.test_ood_user_list,top_k=[K_value], user_neg_test = data.test_neg_user_list)
             eval_test_id = ProxyEvaluator(data,data.train_user_list,data.test_id_user_list,top_k=[K_value], user_neg_test = data.test_neg_user_list)
         else: 

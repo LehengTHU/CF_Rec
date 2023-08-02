@@ -9,12 +9,8 @@ from parse import parse_args
 import time
 import torch
 from copy import deepcopy
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-import pandas as pd
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from reckit import randint_choice
-import os
 
 
 # Helper function used when loading data from files
@@ -88,7 +84,7 @@ class Data:
             self.test_neg_file = self.path + 'test_neg.txt'
         self.batch_size = args.batch_size
         self.neg_sample = args.neg_sample
-        # self.sam=args.sam
+        self.sam=args.sam
         self.IPStype = args.IPStype
         self.device = torch.device(args.cuda)
         self.modeltype = args.modeltype
@@ -253,9 +249,45 @@ class Data:
 
         self.sample_items = np.array(self.items, dtype=int)
 
+        # for sem-reg
+        self.sample_pos_small={}
+        self.sample_pos_big={}
+        lo=0
+        hi=1
+        while hi<len(self.weights):
+            if self.sorted_weight[hi][1]>self.sorted_weight[lo][1]:
+
+                for i in range(lo,hi):
+                    self.sample_pos_small[self.sorted_weight[i][0]]=hi
+                lo=hi
+            hi+=1     
+        for i in range(lo,hi):
+            self.sample_pos_small[self.sorted_weight[i][0]]=hi
+
+        lo=len(self.weights)-2
+        hi=len(self.weights)-1
+        while lo>=0:
+            if self.sorted_weight[lo][1]<self.sorted_weight[hi][1]:
+
+                for i in range(hi,lo,-1):
+                    self.sample_pos_big[self.sorted_weight[i][0]]=lo
+                hi=lo
+            lo-=1
+        
+        for i in range(hi,lo,-1):
+            self.sample_pos_big[self.sorted_weight[i][0]]=lo
+
         
     def get_dataloader(self):
-        self.train_data = TrainDataset(self.modeltype, self.users, self.train_user_list, self.user_pop_idx, self.item_pop_idx, \
+        if self.modeltype == 'UltraGCN_cause':
+            self.train_data = TrainDataset_cause(self.modeltype, self.users, self.train_user_list, self.n_observations, \
+                                                self.n_interactions, self.pop_item, self.n_items, self.infonce, self.neg_sample, self.items, self.sample_items)
+        elif self.modeltype == 'UltraGCN_samreg':
+            self.train_data = TrainDataset_samreg(self.modeltype, self.users, self.train_user_list, self.user_pop_idx, self.item_pop_idx, \
+                                        self.neg_sample, self.n_observations, self.n_items, self.sample_items, self.weights, self.infonce, self.items,\
+                                        self.sample_pos_big, self.sample_pos_small, self.sam, self.sorted_weight)
+        else:
+            self.train_data = TrainDataset(self.modeltype, self.users, self.train_user_list, self.user_pop_idx, self.item_pop_idx, \
                                         self.neg_sample, self.n_observations, self.n_items, self.sample_items, self.weights, self.infonce, self.items)
 
         self.train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, drop_last=True)
@@ -302,9 +334,9 @@ class Data:
                 s = time.time()
                 adj_mat = sp.dok_matrix((self.n_users + self.n_items, self.n_users + self.n_items), dtype=np.float32)
                 adj_mat = adj_mat.tolil()
-                self.trainItem = np.array(self.trainItem)
-                self.trainUser = np.array(self.trainUser)
-                self.UserItemNet = csr_matrix((np.ones(len(self.trainUser)), (self.trainUser, self.trainItem)),
+                trainItem = np.array(self.trainItem)
+                trainUser = np.array(self.trainUser)
+                self.UserItemNet = csr_matrix((np.ones(len(trainUser)), (trainUser, trainItem)),
                                                 shape=(self.n_users, self.n_items))
                 R = self.UserItemNet.tolil()
                 adj_mat[:self.n_users, self.n_users:] = R
@@ -331,28 +363,6 @@ class Data:
 
         return self.Graph
     
-    # def get_not_candidate(self):
-    #     if self.candidate:
-    #         if('kuairec' in self.dataset):
-    #             with open("data/" + self.dataset + '/not_candidate.txt', 'r') as f:
-    #                 not_candidate = f.readlines()
-    #                 not_candidate = [int(item.strip()) for item in not_candidate]
-    #                 not_candidate_dict = {u:not_candidate for u in self.users}
-    #         else:
-    #             not_candidate_dict = {}
-    #             with open('data/' + self.dataset + '/not_candidate.txt', 'r') as f:
-    #                 for line in f.readlines():
-    #                     line = line.strip('\n').split(' ')
-    #                     if len(line) == 0:
-    #                         continue
-    #                     line = [int(i) for i in line]
-    #                     user = line[0]
-    #                     items = line[1:]
-    #                     not_candidate_dict[user] = items
-
-    #         return not_candidate_dict
-    #     else:
-    #         return None
 
 class TrainDataset(torch.utils.data.Dataset):
 
@@ -376,7 +386,7 @@ class TrainDataset(torch.utils.data.Dataset):
         index = index % len(self.users)
         user = self.users[index]
         if self.train_user_list[user] == []:
-            pos_items = 0
+            pos_item = 0
         else:
             pos_item = rd.choice(self.train_user_list[user])
 
@@ -407,4 +417,115 @@ class TrainDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.n_observations
+
+
+class TrainDataset_cause(torch.utils.data.Dataset):
+    
+    def __init__(self, modeltype, users, train_user_list, n_observations, n_interactions, pop_item, n_items, infonce, neg_sample, items, sample_items):
+        self.modeltype = modeltype
+        self.users = users
+        self.train_user_list = train_user_list
+        self.n_observations = n_observations
+        self.n_interactions = n_interactions
+        self.pop_item = pop_item
+        self.n_items = n_items
+        self.infonce = infonce
+        self.neg_sample = neg_sample
+        self.items = items
+        self.sample_items = sample_items
+
+    def __getitem__(self, index):
+
+        index = index % len(self.users)
+        user = self.users[index]
+
+        pos_item = rd.choice(self.train_user_list[user])
+
+
+        while True:
+            neg_item = self.items[rd.randint(0, self.n_items -1)]
+            if neg_item not in self.train_user_list[user]:
+                break
+
+        weight = 0.1 * self.n_interactions/len(self.pop_item)/self.pop_item[pos_item]
+        if weight >= 1:
+            weight = 0
+        rad = rd.random()
+        pos_item_temp, neg_item_temp = 0, 0
+        if rad < weight:
+            pos_item_temp = pos_item + self.n_items
+            neg_item_temp = neg_item + self.n_items  
+
+        all_item = [pos_item_temp, neg_item_temp]
+        ctrl_item = [i+self.n_items if i<self.n_items else i-self.n_items for i in all_item]
+
+        return user, pos_item, neg_item, torch.tensor(all_item), torch.tensor(ctrl_item)
+
+    def __len__(self):
+        return self.n_observations
+  
+
+class TrainDataset_samreg(torch.utils.data.Dataset):
+
+    def __init__(self, modeltype, users, train_user_list, user_pop_idx, item_pop_idx, neg_sample, \
+                n_observations, n_items, sample_items, weights, infonce, items,\
+                sample_pos_big, sample_pos_small, sam, sorted_weight):
+        self.modeltype = modeltype
+        self.users = users
+        self.train_user_list = train_user_list
+        self.user_pop_idx = user_pop_idx
+        self.item_pop_idx = item_pop_idx
+        self.neg_sample = neg_sample
+        self.n_observations = n_observations
+        self.n_items = n_items
+        self.sample_items = sample_items
+        self.weights = weights
+        self.infonce = infonce
+        self.items = items
+        self.sample_pos_big = sample_pos_big
+        self.sample_pos_small = sample_pos_small
+        self.sam = sam
+        self.sorted_weight = sorted_weight
+
+    def __getitem__(self, index):
+
+        index = index % len(self.users)
+        user = self.users[index]
+        if self.train_user_list[user] == []:
+            pos_item = 0
+            idx = 0
+        else:
+            max_length = len(self.train_user_list[user])-1
+            idx = rd.randint(0, max_length)
+            pos_item = self.train_user_list[user][idx]
+
+        user_pop = self.user_pop_idx[user]
+        pos_item_pop = self.item_pop_idx[pos_item]
+        pos_weight = self.weights[pos_item]
+
+        while True:
+            big_pos=self.sample_pos_big[idx]
+            small_pos=self.sample_pos_small[idx]
+            assert small_pos>=big_pos
+            if self.sam and small_pos>1 and big_pos<len(self.weights)-2:
+                d=rd.random()
+                if d >0.5:
+                    neg_item = self.sorted_weight[rd.randint(0, small_pos-1)][0]
+                    if neg_item not in self.train_user_list[user]:
+                        break
+                else:
+                    neg_item = self.sorted_weight[rd.randint(big_pos+1, len(self.weights)-1)][0]
+                    if neg_item not in self.train_user_list[user]:
+                        break
+
+            neg_item = self.items[rd.randint(0, self.n_items -1)]
+            if neg_item not in self.train_user_list[user]:
+                break
+        
+        neg_item_pop = self.item_pop_idx[neg_item]
+        return user, pos_item, user_pop, pos_item_pop, pos_weight, neg_item, neg_item_pop
+
+    def __len__(self):
+        return self.n_observations
+
 
